@@ -17,7 +17,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
-#ifndef __MINGW32__
+#if (!defined __MINGW32__ && !defined __APPLE__)
 #include <mntent.h>
 #include <netdb.h>
 #endif
@@ -29,7 +29,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <strings.h>
-#ifndef __MINGW32__
+#if (!defined __MINGW32__ && !defined __APPLE__)
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
@@ -488,7 +488,7 @@ void parse_chown_usergroup_or_die(struct bb_uidgid_t *u, char *user_group);
 char *bb_getpwuid(char *name, long uid, int bufsize);
 char *bb_getgrgid(char *group, long gid, int bufsize);
 /* versions which cache results (useful for ps, ls etc) */
-#ifndef __MINGW32__
+#ifndef GITBOX
 const char* get_cached_username(uid_t uid);
 const char* get_cached_groupname(gid_t gid);
 #endif
@@ -718,7 +718,7 @@ extern void run_applet_and_exit(const char *name, char **argv);
 extern void run_current_applet_and_exit(char **argv) ATTRIBUTE_NORETURN;
 #endif
 
-#ifndef __MINGW32__
+#if (!defined __MINGW32__ && !defined __APPLE__)
 extern int match_fstype(const struct mntent *mt, const char *fstypes);
 extern struct mntent *find_mount_point(const char *name, const char *table);
 extern void erase_mtab(const char * name);
@@ -796,11 +796,14 @@ char *is_in_ino_dev_hashtable(const struct stat *statbuf);
 void add_to_ino_dev_hashtable(const struct stat *statbuf, const char *name);
 #endif
 void reset_ino_dev_hashtable(void);
+#ifndef GITBOX
+/* In GITBOX it's only used by tar so skip wrapping */
 #ifdef __GLIBC__
 /* At least glibc has horrendously large inline for this, so wrap it */
 unsigned long long bb_makedev(unsigned int major, unsigned int minor);
 #undef makedev
 #define makedev(a,b) bb_makedev(a,b)
+#endif
 #endif
 
 

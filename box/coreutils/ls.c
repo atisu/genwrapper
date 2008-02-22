@@ -587,11 +587,7 @@ static int list_single(struct dnode *dn)
 #endif
 			break;
 		case LIST_MODEBITS:
-#ifdef __MINGW32__
-			column += printf("%-10s ", "-rwxrwxrwx");
-#else
 			column += printf("%-10s ", (char *) bb_mode_string(dn->dstat.st_mode));
-#endif
 			break;
 		case LIST_NLINKS:
 			column += printf("%4ld ", (long) dn->dstat.st_nlink);

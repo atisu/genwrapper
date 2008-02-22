@@ -857,7 +857,7 @@ forkshell_init(struct forkshell *fs)
 
 	sprintf(argv2, "subash%d:%s", p[0], fs->fp);
 
-	fs->cmd.git_cmd = 1;
+	fs->cmd.git_cmd = 0;
 	fs->cmd.argv = argv;
 	fs->fd = p[1];
 	return 0;
@@ -968,7 +968,7 @@ tryspawn(const char *cmd, const char **argv, const char **envp)
 			new_argv[0] = "box";
 			memcpy(&new_argv[1], &argv[0], (argp - argv + 1)*sizeof(const char*));
 			cp.argv = new_argv;
-			cp.git_cmd = 1;
+			cp.git_cmd = 0;
 			trace_argv_printf(new_argv, -1, "git-box: applet:");
 			retval = set_exitstatus(run_command(&cp), new_argv, NULL);
 			free(new_argv);

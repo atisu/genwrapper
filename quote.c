@@ -1,4 +1,4 @@
-#include "cache.h"
+#include "git-compat-util.h"
 #include "quote.h"
 
 /* Help to copy the thing properly quoted for the shell safety.
@@ -197,8 +197,7 @@ static int quote_c_style_counted(const char *name, int namelen,
 		ch = *sp;
 		if (!ch)
 			break;
-		if ((ch < ' ') || (ch == '"') || (ch == '\\') ||
-		    (quote_path_fully && (ch >= 0177))) {
+		if ((ch < ' ') || (ch == '"') || (ch == '\\') || (ch >= 0177)) {
 			needquote = 1;
 			switch (ch) {
 			case '\a': EMITQ(); ch = 'a'; break;

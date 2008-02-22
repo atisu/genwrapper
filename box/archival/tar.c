@@ -260,7 +260,7 @@ static int writeTarHeader(struct TarBallInfo *tbInfo,
 	PUT_OCTAL(header.mtime, statbuf->st_mtime);
 
 	/* Enter the user and group names */
-#ifndef __MINGW32__
+#ifndef GITBOX
 	safe_strncpy(header.uname, get_cached_username(statbuf->st_uid), sizeof(header.uname));
 	safe_strncpy(header.gname, get_cached_groupname(statbuf->st_gid), sizeof(header.gname));
 #endif
@@ -814,7 +814,7 @@ int tar_main(int argc, char **argv)
 		, &verboseFlag // combined count for -t and -v
 		);
 
-#ifndef __MINGW32__
+#ifndef GITBOX
 	if (verboseFlag) tar_handle->action_header = header_verbose_list;
 #endif
 	if (verboseFlag == 1) tar_handle->action_header = header_list;

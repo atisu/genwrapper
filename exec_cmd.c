@@ -1,8 +1,8 @@
-#include "cache.h"
+#include "git-compat-util.h"
 #include "exec_cmd.h"
-#include "quote.h"
 #include "spawn-pipe.h"
 #define MAX_ARGS	32
+#define EXEC_PATH_ENVIRONMENT "GIT_EXEC_PATH"                                   
 
 extern char **environ;
 static const char *current_exec_path;

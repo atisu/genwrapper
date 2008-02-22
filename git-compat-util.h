@@ -174,6 +174,7 @@ extern size_t gitstrlcpy(char *, const char *, size_t);
 #endif
 
 #ifdef NO_STRTOUMAX
+#include "platform.h"
 #define strtoumax gitstrtoumax
 extern uintmax_t gitstrtoumax(const char *, char **, int);
 #endif
@@ -183,7 +184,8 @@ extern uintmax_t gitstrtoumax(const char *, char **, int);
 extern const char *githstrerror(int herror);
 #endif
 
-extern void release_pack_memory(size_t, int);
+/* extern void release_pack_memory(size_t, int); */
+#define release_pack_memory(size_t, int)
 
 static inline char* xstrdup(const char *str)
 {

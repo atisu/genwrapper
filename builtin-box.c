@@ -1,5 +1,5 @@
 #include <ctype.h>
-#include "cache.h"
+#include "git-compat-util.h"
 
 int gitbox_main(int argc, char **argv);
 
@@ -29,7 +29,7 @@ static void prepend_to_path(const char *dir, int len)
 	free(path);
 }
 
-int cmd_box(int argc, const char **argv, const char *prefix)
+int main(int argc, const char **argv)
 {
 	const char *cmd = argv[0];
 	char *slash = strrchr(cmd, '/');
@@ -57,6 +57,7 @@ int cmd_box(int argc, const char **argv, const char *prefix)
 		cmd = slash;
 	}
 #endif
+	argv[0] = cmd;
 
 	/*
 	 * We search for git commands in the following order:
@@ -67,8 +68,10 @@ int cmd_box(int argc, const char **argv, const char *prefix)
 	 */
 	if (exec_path)
 		prepend_to_path(exec_path, strlen(exec_path));
-	exec_path = git_exec_path();
-	prepend_to_path(exec_path, strlen(exec_path));
+/*	exec_path = git_exec_path();
+	prepend_to_path(exec_path, strlen(exec_path)); */
 
+	trace_printf("exec_path=%s, cmd=%s\n",exec_path,cmd);
+	trace_argv_printf(argv, -1, "git-box:");
 	return gitbox_main(argc, argv);
 }

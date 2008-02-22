@@ -399,7 +399,7 @@ char *bin2hex(char *p, const char *cp, int count)
 	return p;
 }
 
-#ifndef __MINGW32__
+#if (!defined __MINGW32__ && !defined __APPLE__)
 // Die with an error message if we can't set gid.  (Because resource limits may
 // limit this user to a given number of processes, and if that fills up the
 // setgid() will fail and we'll _still_be_root_, which is bad.)
@@ -485,7 +485,8 @@ char *xasprintf(const char *format, ...)
 	return string_ptr;
 }
 
-#ifdef __MINGW32__ /* If we will ever meet a libc which hasn't [f]dprintf... */
+/* If we will ever meet a libc which hasn't [f]dprintf... */
+#if (defined __MINGW32__ || defined __APPLE__)
 int fdprintf(int fd, const char *format, ...)
 {
 	va_list p;

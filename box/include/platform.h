@@ -144,7 +144,7 @@
 #endif
 #endif
 
-#ifndef __socklen_t_defined
+#if (!defined __socklen_t_defined && !defined _SOCKLEN_T)
 typedef int socklen_t;
 #endif
 
@@ -247,7 +247,7 @@ typedef unsigned smalluint;
 #define fdprintf dprintf
 #endif
 
-#if defined(__dietlibc__) || defined(__MINGW32__)
+#if defined(__dietlibc__) || defined(__MINGW32__) || defined(__APPLE__)
 static ATTRIBUTE_ALWAYS_INLINE char* strchrnul(const char *s, char c)
 {
 	while (*s && *s != c) ++s;

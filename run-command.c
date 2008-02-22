@@ -1,4 +1,4 @@
-#include "cache.h"
+#include "git-compat-util.h"
 #include "run-command.h"
 #include "exec_cmd.h"
 #include "spawn-pipe.h"

@@ -89,7 +89,7 @@ int mkstemp (char *__template)
 		return -1;
 	return open(filename, O_RDWR | O_CREAT, 0600);
 }
-
+#if 0
 int gettimeofday(struct timeval *tv, void *tz)
 {
 	extern time_t my_mktime(struct tm *tm);
@@ -108,7 +108,7 @@ int gettimeofday(struct timeval *tv, void *tz)
 	tv->tv_usec = st.wMilliseconds*1000;
 	return 0;
 }
-
+#endif
 int pipe(int filedes[2])
 {
 	int fd;
@@ -400,6 +400,8 @@ char *strptime(const char *s, const char *format, struct tm *tm)
 {
 	return NULL;
 }
+#if 0
 void gitunsetenv(const char *env)
 {
 }
+#endif

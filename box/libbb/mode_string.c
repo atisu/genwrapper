@@ -12,9 +12,9 @@
  */
 
 
+#include <sys/stat.h>
 #ifndef __MINGW32__
 #include <assert.h>
-#include <sys/stat.h>
 
 #include "libbb.h"
 
@@ -127,4 +127,11 @@ const char *bb_mode_string(mode_t mode)
 }
 
 #endif
+#else
+const char *bb_mode_string(mode_t mode)
+{
+	static char buf[12]="-rwxrwxrwx";
+	return buf;
+}
+	
 #endif

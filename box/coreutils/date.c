@@ -178,7 +178,7 @@ int date_main(int argc, char **argv)
 		maybe_set_utc(opt);
 
 		/* if setting time, set it */
-#ifndef __MINGW32__
+#if (!defined __MINGW32__ && !defined __APPLE__)
 		if ((opt & DATE_OPT_SET) && stime(&tm) < 0) {
 			bb_perror_msg("cannot set date");
 		}

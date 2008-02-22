@@ -1,0 +1,1 @@
+make CC="gcc -v" CFLAGS="-fnested-functions" V=yes 2>&1 | tee build.log

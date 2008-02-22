@@ -3,7 +3,7 @@
  *
  * No surprises, and works with signed and unsigned chars.
  */
-#include "cache.h"
+#include "git-compat-util.h"
 
 #define SS GIT_SPACE
 #define AA GIT_ALPHA
