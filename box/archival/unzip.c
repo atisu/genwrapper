@@ -26,6 +26,9 @@
 
 #include "libbb.h"
 #include "unarchive.h"
+#ifdef __APPLE__
+#include "byteswap.h"
+#endif
 
 #define ZIP_FILEHEADER_MAGIC		SWAP_LE32(0x04034b50)
 #define ZIP_CDS_MAGIC			SWAP_LE32(0x02014b50)

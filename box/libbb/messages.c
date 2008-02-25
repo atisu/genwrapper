@@ -65,4 +65,8 @@ char bb_common_bufsiz1[(BUFSIZ > 256*sizeof(void*) ? BUFSIZ : 256*sizeof(void*))
 
 struct globals;
 /* Make it reside in R/W memory: */
-struct globals *const ptr_to_globals __attribute__ ((section (".data")));
+#if !defined (__APPLE__)
+struct globals *const ptr_to_globals  __attribute__ ((section (".data")));
+#else
+struct globals *const ptr_to_globals;
+#endif

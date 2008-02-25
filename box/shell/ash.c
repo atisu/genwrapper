@@ -7639,11 +7639,13 @@ evaltree(union node *n, int flags)
 #if !defined(__alpha__) || (defined(__GNUC__) && __GNUC__ >= 3)
 static
 #endif
-void evaltreenr(union node *, int)
+void evaltreenr(union node * n, int flags)
 #if !defined (__APPLE__)
 __attribute__ ((alias("evaltree"),__noreturn__));
 #else
-;
+{
+    evaltree(n, flags);
+}
 #endif
 
 static int loopnest;            /* current loop nesting level */

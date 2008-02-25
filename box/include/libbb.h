@@ -12,6 +12,10 @@
 
 #include "platform.h"
 
+#ifdef __APPLE__
+#include "byteswap.h"
+#endif
+
 #include <ctype.h>
 #include <dirent.h>
 #include <errno.h>
