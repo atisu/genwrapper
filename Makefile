@@ -749,7 +749,7 @@ $(BOX_FILE): $(BOX_OBJS)
 	$(QUIET_AR)rm -f $@ && $(AR) rcs $@ $(BOX_OBJS)
 
 gitbox: builtin-box.o ctype.o quote.o trace.o usage.o \
-  run-command.o exec_cmd.o spawn-pipe.o write_or_die.o \
+  run-command.o exec_cmd.o spawn-pipe.o \
   $(COMPAT_OBJS) $(BOX_FILE)
 	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $^ $(ALL_LDFLAGS) $(LIBS)
 
