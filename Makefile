@@ -315,7 +315,6 @@ BOX_OBJS = \
 	libbb/skip_whitespace.o \
 	libbb/trim.o \
 	libbb/u_signal_names.o \
-	libbb/vdprintf.o \
 	libbb/verror_msg.o \
 	libbb/vperror_msg.o \
 	libbb/warn_ignoring_args.o \

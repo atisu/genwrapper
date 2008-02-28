@@ -233,15 +233,15 @@ const char **copy_environ()
 	return copy_env(environ);
 }
 
-const char **copy_env(const char **env)
+const char **copy_env(char **env)
 {
-	const char **s;
+	char **s;
 	int n = 1;
 	for (s = env; *s; s++)
 		n++;
 	s = xmalloc(n*sizeof(const char *));
 	memcpy(s, env, n*sizeof(const char *));
-	return s;
+	return (const char **)s;
 }
 
 void env_unsetenv(const char **env, const char *name)

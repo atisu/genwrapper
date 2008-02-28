@@ -29,9 +29,9 @@ static void prepend_to_path(const char *dir, int len)
 	free(path);
 }
 
-int main(int argc, const char **argv)
+int main(int argc, char **argv)
 {
-	const char *cmd = argv[0];
+	char *cmd = argv[0];
 	char *slash = strrchr(cmd, '/');
 	const char *exec_path = NULL;
 

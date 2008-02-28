@@ -208,6 +208,10 @@ typedef struct tsplitter_s {
 #define	OPCLSMASK 0xFF00
 #define	OPNMASK   0x007F
 
+#ifdef __APPLE__
+/* defined in sys/param.h */
+#undef PRIMASK
+#endif
 /* operator priority is a highest byte (even: r->l, odd: l->r grouping)
  * For builtins it has different meaning: n n s3 s2 s1 v3 v2 v1,
  * n - min. number of args, vN - resolve Nth arg to var, sN - resolve to string

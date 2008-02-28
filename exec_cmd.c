@@ -172,7 +172,7 @@ int execl_git_cmd(const char *cmd,...)
 	return execv_git_cmd(argv);
 }
 
-int spawnve_git_cmd(const char **argv, int pin[2], int pout[2], char **envp)
+int spawnve_git_cmd(const char **argv, int pin[2], int pout[2], const char **envp)
 {
 	int i, rc;
 	pid_t pid;

@@ -25,32 +25,12 @@
 #include "git-compat-util.h"
 #include "quote.h"
 
-/* from write_or_die.c */
-static int write_in_full(int fd, const void *buf, size_t count)
-{
-	const char *p = buf;
-	ssize_t total = 0;
-
-	while (count > 0) {
-		ssize_t written = xwrite(fd, p, count);
-		if (written < 0)
-			return -1;
-		if (!written) {
-			errno = ENOSPC;
-			return -1;
-		}
-		count -= written;
-		p += written;
-		total += written;
-	}
-
-	return total;
-}
-
+/* from libbb.h */
+extern ssize_t full_write(int fd, const void *buf, size_t count);
 /* from write_or_die.c */
 static int write_or_whine_pipe(int fd, const void *buf, size_t count, const char *msg)
 {
-	if (write_in_full(fd, buf, count) < 0) {
+	if (full_write(fd, buf, count) < 0) {
 		if (errno == EPIPE)
 			exit(0);
 		fprintf(stderr, "%s: write error (%s)\n",

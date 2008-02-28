@@ -33,12 +33,14 @@
 #include <stddef.h>
 #include <string.h>
 #include <strings.h>
-#if (!defined __MINGW32__ && !defined __APPLE__)
+#ifndef __MINGW32__
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
+#ifndef __APPLE__
 #include <sys/statfs.h>
-#endif
+#endif /* __APPLE__ */
+#endif /* __MINGW32__ */
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -186,9 +188,6 @@ extern int *const bb_errno;
 #define errno (*bb_errno)
 #endif
 
-#if defined(__GLIBC__) && __GLIBC__ < 2
-int vdprintf(int d, const char *format, va_list ap);
-#endif
 // This is declared here rather than #including <libgen.h> in order to avoid
 // confusing the two versions of basename.  See the dirname/basename man page
 // for details.
