@@ -1,6 +1,13 @@
 #include <ctype.h>
 #include "git-compat-util.h"
 
+#ifdef BOINC
+#include "boinc_api.h"
+
+BOINC_OPTIONS boinc_options;
+int boinc_init_called = 0;
+#endif
+
 int gitbox_main(int argc, char **argv);
 
 static void prepend_to_path(const char *dir, int len)

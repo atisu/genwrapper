@@ -14,9 +14,6 @@
 
 #include <assert.h>
 #include "busybox.h"
-#ifdef BOINC
-#include "boinc_api.h"
-#endif
 
 /* Apparently uclibc defines __GLIBC__ (compat trick?). Oh well. */
 #if ENABLE_STATIC && defined(__GLIBC__) && !defined(__UCLIBC__)
@@ -644,9 +641,8 @@ void run_current_applet_and_exit(char **argv)
 void run_applet_and_exit(const char *name, char **argv)
 {
 	current_applet = find_applet_by_name(name);
-	if (current_applet) {
+	if (current_applet)
 		run_current_applet_and_exit(argv);
-    }
 	if (!strncmp(name, "box", 3))
 		exit(busybox_main(argv));
 }
