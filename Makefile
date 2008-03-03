@@ -127,6 +127,14 @@ ALL_CFLAGS = $(CFLAGS)
 ALL_LDFLAGS = $(LDFLAGS)
 STRIP ?= strip
 
+BOINC=yes
+
+ifeq ($(BOINC),yes)
+BOINC_HOME=/home/atisu/boinc/source/boinc-5.6
+ALL_CFLAGS += -I$(BOINC_HOME)/api -I$(BOINC_HOME)/lib -DBOINC
+ALL_LDFLAGS += -L$(BOINC_HOME)/api -lboinc_api -L$(BOINC_HOME)/lib -lboinc -lstdc++ -pthread
+endif
+
 prefix = $(HOME)
 bindir = $(prefix)/bin
 gitexecdir = $(bindir)
@@ -309,6 +317,10 @@ BOX_OBJS = \
 	libbb/xreadlink.o \
 	libbb/xregcomp.o \
 	shell/ash.o \
+
+ifeq ($(BOINC),yes)
+BOX_OBJS += boinc/boinc.o
+endif
 
 BOX_CFLAGS = -Ibox/include -Ibox/libbb -I. -DBB_VER=\"$(GIT_VERSION)\"
 

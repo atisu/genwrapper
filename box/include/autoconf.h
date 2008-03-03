@@ -358,6 +358,16 @@
 #define SKIP_FEATURE_DEB_TAR_LZMA(...) __VA_ARGS__
 
 /*
+ *  BOINC
+ */
+#ifdef BOINC
+#define CONFIG_BOINC 1
+#define ENABLE_BOINC 1
+#define USE_BOINC(...) __VA_ARGS__
+#define SKIP_BOINC(...)
+#endif
+
+/*
  * Coreutils
  */
 #define CONFIG_BASENAME 1

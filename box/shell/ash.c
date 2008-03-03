@@ -75,6 +75,10 @@ extern char **environ;
 #include "ash_fork.h"
 #endif
 
+#ifdef BOINC
+#include "boinc_api.h"
+#endif
+
 /* ============ Misc helpers */
 
 #define xbarrier() do { __asm__ __volatile__ ("": : :"memory"); } while (0)
@@ -12787,6 +12791,10 @@ exitshell(void)
 	flush_stdout_stderr();
  out:
 	setjobctl(0);
+#ifdef BOINC
+//  fprintf(stderr,"boinc_finish(%d) called\n", 0);
+//	boinc_finish(0);
+#endif    
 	_exit(status);
 	/* NOTREACHED */
 }
@@ -12959,6 +12967,11 @@ int ash_main(int argc, char **argv)
 	volatile int state;
 	struct jmploc jmploc;
 	struct stackmark smark;
+
+#ifdef BOINC
+    boinc_init();
+    fprintf(stderr,"boinc_init() called\n");
+#endif
 
 #if PROFILE
 	monitor(4, etext, profile_buf, sizeof(profile_buf), 50);

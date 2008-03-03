@@ -155,7 +155,14 @@
        "\n\nOptions:" \
        "\n	-j	Use julian dates" \
        "\n	-y	Display the entire year"
-
+#ifdef BOINC
+#define boinc_trivial_usage \
+       "BOINC applet v1.00\n"
+#define boinc_full_usage \
+       "BOINC applet v1.00\n"
+#define boinc_example_usage \
+       "BOINC applet v1.00\n"
+#endif
 #define cat_trivial_usage \
        "[-u] [FILE]..."
 #define cat_full_usage \
