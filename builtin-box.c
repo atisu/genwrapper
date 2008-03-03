@@ -4,8 +4,8 @@
 #ifdef BOINC
 #include "boinc_api.h"
 
-BOINC_OPTIONS boinc_options;
-int boinc_init_called = 0;
+//BOINC_OPTIONS boinc_options;
+//int boinc_init_called = 0;
 #endif
 
 int gitbox_main(int argc, char **argv);
@@ -66,6 +66,10 @@ int main(int argc, char **argv)
 #endif
 	argv[0] = cmd;
 
+#ifdef BOINC    
+        boinc_init();
+        fprintf(stderr,"boinc_init() called\n");        
+#endif
 	/*
 	 * We search for git commands in the following order:
 	 *  - git_exec_path()

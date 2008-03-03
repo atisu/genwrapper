@@ -21,16 +21,16 @@
 #include "libbb.h"
 #include "boinc_api.h"
 
-extern BOINC_OPTIONS boinc_options;
-extern int boinc_init_called;
+//extern BOINC_OPTIONS boinc_options;
+//static int boinc_init_called;
 
 // extern int boinc_resolve_filename(const char*, char*, int len);
 // extern int boinc_fraction_done(double);
 
 int boinc_resolve_filename_(const char* filename) {
-    char buf[2048];
+    char buf[PATH_MAX];
     int result;
-    result = boinc_resolve_filename(filename, buf, 2047);
+    result = boinc_resolve_filename(filename, buf, PATH_MAX-1);
     fprintf(stdout, "%s", buf);
     fprintf(stderr, "boinc_resolve_filename('%s','%s') called\n", filename, buf);
     return result;
@@ -51,8 +51,7 @@ int boinc_finish_(int status) {
 }
 
 int boinc_init_() {
-    boinc_options.main_program = true;
-    return boinc_init_options(&boinc_options);
+    return 0;
 }
 
 int boinc_main(int argc, char **argv);
@@ -62,12 +61,6 @@ int boinc_main(int argc, char **argv)
     int fraction;
     double d_fraction;
     char *endptr;
-
-    if (!boinc_init_called) {
-        boinc_init_called = 1;
-        boinc_init_();
-        fprintf(stderr,"boinc_init() called\n");
-    }
 
 	retval = EXIT_SUCCESS;
 	if (argc<=1) {
