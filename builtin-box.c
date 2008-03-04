@@ -6,6 +6,7 @@
 
 //BOINC_OPTIONS boinc_options;
 //int boinc_init_called = 0;
+char buf[PATH_MAX];
 #endif
 
 int gitbox_main(int argc, char **argv);
@@ -68,7 +69,13 @@ int main(int argc, char **argv)
 
 #ifdef BOINC    
         boinc_init();
-        fprintf(stderr,"boinc_init() called\n");        
+        fprintf(stderr,"boinc_init() called\n");    
+        fprintf(stderr, "original: argv[0]:%s, argv[1]%s, argv[2]:%s\n", argv[0], argv[1], argv[2]);
+        if (argc>2 && strcmp(argv[1],"sh")==0) {
+            boinc_resolve_filename(argv[2], buf, PATH_MAX-1);
+            argv[2]=buf;
+            fprintf(stderr, "resolved: argv[0]:%s, argv[1]%s, argv[2]:%s\n", argv[0], argv[1], argv[2]);
+        }
 #endif
 	/*
 	 * We search for git commands in the following order:
