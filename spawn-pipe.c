@@ -1,5 +1,8 @@
 #include "git-compat-util.h"
 #include "spawn-pipe.h"
+#ifdef BOINC
+#include "boinc_api.h"
+#endif
 
 extern char **environ;
 
@@ -188,6 +191,12 @@ int spawnvppe_pipe(const char *cmd, const char **argv, const char **env,
 	}
 
 	prog = path_lookup(cmd, path);
+#ifdef BOINC
+	char prog_resolved[PATH_MAX];
+	boinc_resolve_filename(prog, prog_resolved, PATH_MAX-1);
+	free(prog);
+	prog = prog_resolved;
+#endif
 	interpr = parse_interpreter(prog);
 
 	for (argc = 0; argv[argc];) argc++;
@@ -211,8 +220,9 @@ int spawnvppe_pipe(const char *cmd, const char **argv, const char **env,
 	}
 
 	free(qargv);		/* TODO: quoted args should be freed, too */
+#ifndef BOINC
 	free(prog);
-
+#endif
 	if (s0 >= 0) {
 		dup2(s0, 0);
 		close(s0);
