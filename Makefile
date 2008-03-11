@@ -130,9 +130,15 @@ STRIP ?= strip
 BOINC=yes
 
 ifeq ($(BOINC),yes)
+ifdef MINGW
+OPENSSLDIR=C:/Projects/genwrapper/trunk/win32/openssl/
+ALL_LDFLAGS +=-LC:/Projects/boinc_mingw/ -lboinc -lstdc++ -lwinmm
+ALL_CFLAGS += -IC:/Projects/boinc_mingw/include/ -DBOINC
+else
 BOINC_HOME=/home/atisu/boinc/source/boinc-5.6
 ALL_CFLAGS += -I$(BOINC_HOME)/api -I$(BOINC_HOME)/lib -DBOINC
 ALL_LDFLAGS += -L$(BOINC_HOME)/api -lboinc_api -L$(BOINC_HOME)/lib -lboinc -lstdc++ -pthread
+endif
 endif
 
 prefix = $(HOME)
