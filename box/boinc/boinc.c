@@ -20,6 +20,7 @@
 #include "usage.h"
 #include "libbb.h"
 #include "boinc_api.h"
+#include "common.h"
 
 //extern BOINC_OPTIONS boinc_options;
 //static int boinc_init_called;
@@ -32,7 +33,7 @@ int boinc_resolve_filename_(const char* filename) {
     int result;
     result = boinc_resolve_filename(filename, buf, PATH_MAX-1);
     fprintf(stdout, "%s", buf);
-    fprintf(stderr, "boinc_resolve_filename('%s','%s') called\n", filename, buf);
+    //fprintf(stderr, "boinc_resolve_filename('%s','%s') called\n", filename, buf);
     return result;
 }
 
@@ -41,8 +42,13 @@ int boinc_fraction_done_(double fraction) {
 }
 
 int boinc_fraction_done_percent_(int fraction) {
-    double d_fraction = fraction / 100;
-    return boinc_fraction_done(d_fraction);
+    double d_fraction = fraction / 100.00;
+    FILE *f = fopen(FILE_FRACTION_DONE, "w+");
+	if (!f)
+		return false;
+	fprintf(f,"%lf", d_fraction);
+	fclose(f);
+	return true;
 }
 
 
@@ -86,7 +92,7 @@ int boinc_main(int argc, char **argv)
             return retval;            
         }
         boinc_fraction_done_percent_(fraction);
-        fprintf(stderr,"fraction_done_percent called with fraction==%d\n", fraction);                
+        //fprintf(stderr,"fraction_done_percent called with fraction==%d\n", fraction);                
     } else if (strcmp(argv[1], "fraction_done")==0) {
         if (argc<=2) {
             fprintf(stderr,"ERROR: missing parameter for fraction_done\n");
@@ -99,7 +105,7 @@ int boinc_main(int argc, char **argv)
             return retval;            
         }
         boinc_fraction_done_(d_fraction);
-        fprintf(stderr,"fraction_done called with fraction==%lf\n", d_fraction);                
+        //fprintf(stderr,"fraction_done called with fraction==%lf\n", d_fraction);                
     } else if (strcmp(argv[1], "finish")==0) {
         if (argc<=2) {
             fprintf(stderr,"ERROR: missing parameter for finish\n");
@@ -111,13 +117,11 @@ int boinc_main(int argc, char **argv)
             fprintf(stderr,"ERROR: invalid parameter for finish ('%s'->%d)\n", argv[2], status);
             return retval;            
         }
-        fprintf(stderr,"boinc_finish(%d) called\n", status);
-        boinc_finish_(status);
-    } else if (strcmp(argv[1], "init")==0) {
-        // boinc_init is invoked by the shell, no reason to invoke it here
-        //boinc_init_();
-        //fprintf(stderr,"boinc_init() called\n");
-    }
+        //fprintf(stderr,"boinc_finish(%d) called\n", status);
+		exit(status);
+	} else if (strcmp(argv[1], "init")==0) {
+		// nothing here yet.
+	}
 	return retval;
 }
 

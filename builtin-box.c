@@ -3,10 +3,8 @@
 
 #ifdef BOINC
 #include "boinc_api.h"
-
-//BOINC_OPTIONS boinc_options;
-//int boinc_init_called = 0;
-char buf[PATH_MAX];
+char buf_argv2[PATH_MAX];
+char buf_argv0[PATH_MAX]; 
 #endif
 
 int gitbox_main(int argc, char **argv);
@@ -43,6 +41,12 @@ int main(int argc, char **argv)
 	char *slash = strrchr(cmd, '/');
 	const char *exec_path = NULL;
 
+#ifdef BOINC
+    boinc_resolve_filename(argv[0], buf_argv0, PATH_MAX-1);
+    cmd = buf_argv0;
+#else
+    cmd = argv[0];
+#endif 
 	/*
 	 * Take the basename of argv[0] as the command
 	 * name, and the dirname as the default exec_path
@@ -68,15 +72,13 @@ int main(int argc, char **argv)
 	argv[0] = cmd;
 
 #ifdef BOINC    
-        boinc_init();
-        fprintf(stderr,"boinc_init() called\n");    
-        fprintf(stderr, "original: argv[0]:%s, argv[1]%s, argv[2]:%s\n", argv[0], argv[1], argv[2]);
-        if (argc>2 && strcmp(argv[1],"sh")==0) {
-            boinc_resolve_filename(argv[2], buf, PATH_MAX-1);
-            argv[2]=buf;
-            fprintf(stderr, "resolved: argv[0]:%s, argv[1]%s, argv[2]:%s\n", argv[0], argv[1], argv[2]);
-        }
-#endif
+    //fprintf(stderr, "in main()...\n");
+    if (argc>2 && strcmp(argv[1],"sh")==0) {
+		boinc_resolve_filename(argv[2], buf_argv2, PATH_MAX-1);
+        argv[2]=buf_argv2;
+        //fprintf(stderr, "resolved: argv[0]:%s, argv[1]%s, argv[2]:%s\n", argv[0], argv[1], argv[2]);
+    }
+#endif 
 	/*
 	 * We search for git commands in the following order:
 	 *  - git_exec_path()

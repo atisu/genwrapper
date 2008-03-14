@@ -133,7 +133,7 @@ ifeq ($(BOINC),yes)
 ifdef MINGW
 OPENSSLDIR=C:/Projects/genwrapper/trunk/win32/openssl/
 ALL_LDFLAGS +=-LC:/Projects/boinc_mingw/ -lboinc -lstdc++ -lwinmm
-ALL_CFLAGS += -IC:/Projects/boinc_mingw/include/ -DBOINC
+ALL_CFLAGS += -IC:/Projects/boinc_mingw/include/ -DBOINC 
 else
 BOINC_HOME=/home/atisu/boinc/source/boinc-5.6
 ALL_CFLAGS += -I$(BOINC_HOME)/api -I$(BOINC_HOME)/lib -DBOINC
@@ -436,7 +436,7 @@ ifneq (,$(findstring MINGW,$(uname_S)))
 endif
 	NO_MMAP=YesPlease
 	NO_PREAD=YesPlease
-	NO_OPENSSL=YesPlease
+#	NO_OPENSSL=YesPlease
 	NO_CURL=YesPlease
 	NO_SYMLINK_HEAD=YesPlease
 	NO_IPV6=YesPlease

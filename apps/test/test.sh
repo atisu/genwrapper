@@ -3,7 +3,7 @@ boinc init
 
 OUT=`boinc resolve_filename out`
 IN=`boinc resolve_filename in`
-NUM=`cat ${IN}`
+NUM=`cat in`
 
 PERCENT_PER_ITER=$((100000 / NUM))
 
