@@ -5,17 +5,42 @@
 # This creates a symbolic link to the C++ library,
 # which is linked statically
 
+uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')  
+ifneq (,$(findstring MINGW,$(uname_S)))                                                                                                                                                                                 
+    MINGW=YesPlease                                                                                                                                                                                                 
+endif
+
 # Change the following to match your installation
+ifdef MINGW32
 BOINC_DIR = c:/Projects/boinc_mingw
 BOINC_API_DIR = $(BOINC_DIR)
 BOINC_LIB_DIR = $(BOINC_DIR)
+else
+BOINC_DIR = /home/atisu/boinc/source/boinc_core_release_5_10_45
+BOINC_API_DIR = $(BOINC_DIR)/api
+BOINC_LIB_DIR = $(BOINC_DIR)/lib
+endif
+
+LDFLAGS= \
+    -L$(BOINC_API_DIR) \
+    -L$(BOINC_LIB_DIR) \
+    -L$(BOINC_DIR) \
+    -L. 
+ifdef MINGW
+LDFLAGS += -lboinc -lstdc++
+else
+LDFLAGS += -lboinc_api -lboinc -lpthread
+endif
 
 CXXFLAGS = -g \
     -I../ \
     -I$(BOINC_DIR)/include \
-    -L$(BOINC_DIR) \
-    -L. \
-    -DWIN32 -D_WIN32 -D_MT -DNDEBUG -D_WINDOWS -DBOINC -DCLIENT -DNODB -D_CONSOLE -fexceptions
+    -I$(BOINC_API_DIR) \
+    -I$(BOINC_LIB_DIR) \
+    -DBOINC
+ifdef MINGW
+CXXFLAGS +=  -DWIN32 -D_WIN32 -D_MT -DNDEBUG -D_WINDOWS -DCLIENT -DNODB -D_CONSOLE -fexceptions
+endif
 
 PROGS = launcher
 
@@ -24,5 +49,5 @@ all: $(PROGS)
 clean:
 	rm $(PROGS) *.o
 
-launcher: launcher.o $(BOINC_DIR)/libboinc.a 
-	g++ $(CXXFLAGS) -o launcher launcher.o -lboinc -lstdc++
+launcher: launcher.o  
+	g++ $(CXXFLAGS) -o launcher launcher.o  $(LDFLAGS) 
