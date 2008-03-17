@@ -11,10 +11,11 @@ ifneq (,$(findstring MINGW,$(uname_S)))
 endif
 
 # Change the following to match your installation
-ifdef MINGW32
+ifdef MINGW
 BOINC_DIR = c:/Projects/boinc_mingw
 BOINC_API_DIR = $(BOINC_DIR)
 BOINC_LIB_DIR = $(BOINC_DIR)
+EXE_SUFFIX=.exe
 else
 BOINC_DIR = /home/atisu/boinc/source/boinc_core_release_5_10_45
 BOINC_API_DIR = $(BOINC_DIR)/api
@@ -27,9 +28,9 @@ LDFLAGS= \
     -L$(BOINC_DIR) \
     -L. 
 ifdef MINGW
-LDFLAGS += -lboinc -lstdc++
+LOADLIBES = -lboinc -lstdc++
 else
-LDFLAGS += -lboinc_api -lboinc -lpthread
+LOADLIBES = -lboinc_api -lboinc -lpthread
 endif
 
 CXXFLAGS = -g \
@@ -47,7 +48,7 @@ PROGS = launcher
 all: $(PROGS)
 
 clean:
-	rm $(PROGS) *.o
+	rm -rf $(PROGS)$(EXE_SUFFIX) $(PROGS).o
 
-launcher: launcher.o  
-	g++ $(CXXFLAGS) -o launcher launcher.o  $(LDFLAGS) 
+#launcher: launcher.o  
+#	g++ $(CXXFLAGS) -o launcher launcher.o  $(LDFLAGS) 
