@@ -10,23 +10,32 @@ ifneq (,$(findstring MINGW,$(uname_S)))
     MINGW=YesPlease                                                                                                                                                                                                 
 endif
 
-# Change the following to match your installation
+
+# Change the following options to match your installation
+WANT_DCAPI=YesPlease
+DCAPI_INCLUDE_DIR=\
+    -I../../../dcapi_mingw/trunk/include\
+    -I../../../dcapi_mingw/trunk/boinc
+## Options for Mingw
 ifdef MINGW
 BOINC_DIR = c:/Projects/boinc_mingw
 BOINC_API_DIR = $(BOINC_DIR)
 BOINC_LIB_DIR = $(BOINC_DIR)
 EXE_SUFFIX=.exe
+## Options for Linux/ OS X
 else
 BOINC_DIR = /home/atisu/boinc/source/boinc_core_release_5_10_45
 BOINC_API_DIR = $(BOINC_DIR)/api
 BOINC_LIB_DIR = $(BOINC_DIR)/lib
 endif
 
+
 LDFLAGS= \
     -L$(BOINC_API_DIR) \
     -L$(BOINC_LIB_DIR) \
     -L$(BOINC_DIR) \
     -L. 
+
 ifdef MINGW
 LOADLIBES = -lboinc -lstdc++
 else
@@ -39,6 +48,11 @@ CXXFLAGS = -g \
     -I$(BOINC_API_DIR) \
     -I$(BOINC_LIB_DIR) \
     -DBOINC
+
+ifdef WANT_DCAPI
+CXXFLAGS += -DWANT_DCAPI $(DCAPI_INCLUDE_DIR)
+endif
+
 ifdef MINGW
 CXXFLAGS +=  -DWIN32 -D_WIN32 -D_MT -DNDEBUG -D_WINDOWS -DCLIENT -DNODB -D_CONSOLE -fexceptions
 endif
@@ -50,5 +64,3 @@ all: $(PROGS)
 clean:
 	rm -rf $(PROGS)$(EXE_SUFFIX) $(PROGS).o
 
-#launcher: launcher.o  
-#	g++ $(CXXFLAGS) -o launcher launcher.o  $(LDFLAGS) 

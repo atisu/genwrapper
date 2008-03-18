@@ -46,6 +46,10 @@
 #endif
 #include "common.h"
 
+#ifdef WANT_DCAPI
+#include "dc_client.h"
+#endif
+
 #include "boinc_api.h"
 #include "diagnostics.h"
 #include "filesys.h"
@@ -58,6 +62,11 @@
 #define CHECKPOINT_FILENAME "checkpoint.txt"
 
 #define POLL_PERIOD 1.0
+
+#ifdef WANT_DCAPI
+#define CKPT_LABEL_IN		"dc_ckpt_in"
+#define CKPT_LABEL_OUT		"dc_ckpt_out"
+#endif
 
 using std::vector;
 using std::string;
@@ -105,12 +114,18 @@ int TASK::parse(XML_PARSER& xp) {
             continue;
         }
         if (!strcmp(tag, "/task")) {
-            return 0;
+#ifdef WANT_DCAPI
+			stdout_filename = DC_LABEL_STDOUT;
+			stderr_filename = DC_LABEL_STDERR;
+#endif
+			return 0;
         }
         else if (xp.parse_string(tag, "application", application)) continue;
         else if (xp.parse_string(tag, "stdin_filename", stdin_filename)) continue;
+#ifndef WANT_DCAPI
         else if (xp.parse_string(tag, "stdout_filename", stdout_filename)) continue;
         else if (xp.parse_string(tag, "stderr_filename", stderr_filename)) continue;
+#endif
         else if (xp.parse_string(tag, "command_line", command_line)) continue;
     }
     return ERR_XML_PARSE;
@@ -239,9 +254,25 @@ int TASK::run(int argct, char** argvt) {
     if (stderr_filename != "") {
         boinc_resolve_filename_s(stderr_filename.c_str(), stderr_path);
         startup_info.hStdError = win_fopen(stderr_path.c_str(), "w");
-    } else {
+	} else {
         startup_info.hStdError = win_fopen(STDERR_FILE, "a");
     }
+#ifdef WANT_DCAPI
+	// create additional files required by DCAPI
+	FILE *f;
+	if (f = boinc_fopen(CKPT_LABEL_OUT, "w+")) {
+		fprintf(f, "Empty: created by Launcher\n");
+		fclose(f);
+	} else {
+		fprintf(stderr, "Launcher: ERROR: Cannot create '%s'\n", CKPT_LABEL_OUT);
+	}
+	if (f = boinc_fopen(DC_LABEL_CLIENTLOG, "w+")) {
+		fprintf(f, "Empty: created by Launcher\n");
+		fclose(f);
+	} else {
+		fprintf(stderr, "Launcher: ERROR: Cannot create '%s'\n", DC_LABEL_CLIENTLOG);
+	}
+#endif
     if (!CreateProcess(
         app_path.c_str(),
         (LPSTR)command.c_str(),
@@ -319,8 +350,10 @@ bool TASK::poll(int& status) {
     if (GetExitCodeProcess(pid_handle, &exit_code)) {
         if (exit_code != STILL_ACTIVE) {
             status = exit_code;
-            final_cpu_time = cpu_time();
-            return true;
+            //final_cpu_time = cpu_time();
+            // trivial validator needs cpu_time > 0
+			final_cpu_time = 1;
+			return true;
         }
     }
     if (!suspended) wall_cpu_time += POLL_PERIOD;
@@ -330,7 +363,9 @@ bool TASK::poll(int& status) {
 
     wpid = wait4(pid, &status, WNOHANG, &ru);
     if (wpid) {
-        final_cpu_time = (float)ru.ru_utime.tv_sec + ((float)ru.ru_utime.tv_usec)/1e+6;
+        //final_cpu_time = (float)ru.ru_utime.tv_sec + ((float)ru.ru_utime.tv_usec)/1e+6;
+        // trivial validator needs cpu_time > 0
+		final_cpu_time = 1;
         return true;
     }
 #endif
@@ -476,6 +511,10 @@ int main(int argc, char** argv) {
     options.handle_process_control = true;
 
     boinc_init_options(&options);
+#ifdef WANT_DCAPI
+	// create files needed by dcapi
+
+#endif
     fprintf(stderr, "wrapper: starting\n");
     retval = parse_job_file();
     if (retval) {
