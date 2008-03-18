@@ -13,17 +13,22 @@ endif
 
 # Change the following options to match your installation
 WANT_DCAPI=YesPlease
-DCAPI_INCLUDE_DIR=\
-    -I../../../dcapi_mingw/trunk/include\
-    -I../../../dcapi_mingw/trunk/boinc
 ## Options for Mingw
 ifdef MINGW
+DCAPI_DIR=../../../dcapi_mingw/trunk
+DCAPI_INCLUDE=\
+    -I$(DCAPI_DIR)/include\
+    -I$(DCAPI_DIR)/boinc
 BOINC_DIR = c:/Projects/boinc_mingw
 BOINC_API_DIR = $(BOINC_DIR)
 BOINC_LIB_DIR = $(BOINC_DIR)
 EXE_SUFFIX=.exe
 ## Options for Linux/ OS X
 else
+DCAPI_DIR=../../../../dcapi/trunk/
+DCAPI_INCLUDE=\
+    -I$(DCAPI_DIR)/include\
+    -I$(DCAPI_DIR)/boinc
 BOINC_DIR = /home/atisu/boinc/source/boinc_core_release_5_10_45
 BOINC_API_DIR = $(BOINC_DIR)/api
 BOINC_LIB_DIR = $(BOINC_DIR)/lib
@@ -50,7 +55,7 @@ CXXFLAGS = -g \
     -DBOINC
 
 ifdef WANT_DCAPI
-CXXFLAGS += -DWANT_DCAPI $(DCAPI_INCLUDE_DIR)
+CXXFLAGS += -DWANT_DCAPI $(DCAPI_INCLUDE)
 endif
 
 ifdef MINGW
