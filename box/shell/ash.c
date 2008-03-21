@@ -4859,21 +4859,13 @@ dupredirect(union node *redir, int f)
 
 	if (redir->nfile.type == NTOFD || redir->nfile.type == NFROMFD) {
 		if (redir->ndup.dupfd >= 0) {   /* if not ">&-" */
-#ifdef __MINGW32__
-			dup2(redir->ndup.dupfd, fd);
-#else
 			copyfd(redir->ndup.dupfd, fd);
-#endif
 		}
 		return;
 	}
 
 	if (f >= 0 && f != fd) {
-#ifdef __MINGW32__
-		dup2(f, fd);
-#else
 		copyfd(f, fd);
-#endif
 		close(f);
 	}
 }
@@ -4925,11 +4917,7 @@ redirect(union node *redir, int flags)
 		if (fd == newfd)
 			continue;
 		if (sv && *(p = &sv->renamed[fd]) == EMPTY) {
-#ifdef __MINGW32__
 			i = copyfd(fd, 10);
-#else
-			i = fcntl(fd, F_DUPFD, 10);
-#endif
 
 			if (i == -1) {
 				i = errno;
@@ -4970,11 +4958,7 @@ popredir(int drop)
 		if (rp->renamed[i] != EMPTY) {
 			if (!drop) {
 				close(i);
-#ifdef __MINGW32__
-				dup2(rp->renamed[i], i);
-#else
 				copyfd(rp->renamed[i], i);
-#endif
 			}
 			close(rp->renamed[i]);
 		}
@@ -13081,7 +13065,7 @@ int ash_main(int argc, char **argv)
 	/* NOTREACHED */
 }
 
-#if DEBUG
+#if 0 /*DEBUG*/
 const char *applet_name = "debug stuff usage";
 int main(int argc, char **argv)
 {
