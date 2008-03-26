@@ -18,7 +18,7 @@ struct child_process {
 	int in;
 	int out;
 	const char *dir;
-	const char *const *env;
+	const char **env;
 	unsigned close_in:1;
 	unsigned close_out:1;
 	unsigned no_stdin:1;
@@ -43,6 +43,6 @@ int run_command_v_opt_cd(const char **argv, int opt, const char *dir);
  * env (the environment) is to be formatted like environ: "VAR=VALUE".
  * To unset an environment variable use just "VAR".
  */
-int run_command_v_opt_cd_env(const char **argv, int opt, const char *dir, const char *const *env);
+int run_command_v_opt_cd_env(const char **argv, int opt, const char *dir, const char **env);
 
 #endif
