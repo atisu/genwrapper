@@ -791,7 +791,6 @@ struct forkpoint {
 static void
 evalbackcmd_fp(union node *n, int flags)
 {
-	trace_printf("ash: subshell: %s\n",__PRETTY_FUNCTION__);
 	FORCE_INT_ON;
 	/*
 	close(pip[0]);
@@ -808,7 +807,6 @@ evalbackcmd_fp(union node *n, int flags)
 static void
 evalsubshell_fp(union node *n, int flags)
 {
-	trace_printf("ash: subshell: %s\n",__PRETTY_FUNCTION__);
 	INT_ON;
 	expredir(n->nredir.redirect);
 	redirect(n->nredir.redirect, 0);
@@ -818,7 +816,6 @@ evalsubshell_fp(union node *n, int flags)
 static void
 evalpipe_fp(union node *n,int flags)
 {
-	trace_printf("ash: subshell: %s\n",__PRETTY_FUNCTION__);
 	INT_ON;
 	evaltreenr(n, flags);
 }
@@ -826,7 +823,6 @@ evalpipe_fp(union node *n,int flags)
 static void
 openhere_fp(union node *redir, int flags)
 {
-	trace_printf("ash: subshell: %s\n",__PRETTY_FUNCTION__);
 	if (redir->type == NHERE) {
 		size_t len = strlen(redir->nhere.doc->narg.text);
 		full_write(1, redir->nhere.doc->narg.text, len);
@@ -971,7 +967,6 @@ tryspawn(const char *cmd, const char **argv, const char **envp)
 	 */
 	cp.cmd = cmd;
 	cp.argv = argv;
-	trace_puts_args(argv);
 	return set_exitstatus(run_command(&cp), argv, NULL);
 }
 
@@ -1182,7 +1177,6 @@ evalpipe(union node *n, int flags)
 	int prevfd;
 	int pip[2];
 
-	TRACE(("evalpipe(0x%lx) called\n", (long)n));
 	pipelen = 0;
 	for (lp = n->npipe.cmdlist; lp; lp = lp->next)
 		pipelen++;

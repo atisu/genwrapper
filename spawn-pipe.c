@@ -8,6 +8,8 @@ extern char **environ;
 extern char *argv0_basename;
 
 #ifdef __MINGW32__
+#include "exec_cmd.h"
+
 static char *lookup_prog(const char *dir, const char *cmd, int tryexe)
 {
 	char path[MAX_PATH];

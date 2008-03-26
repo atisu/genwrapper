@@ -436,7 +436,7 @@ ifneq (,$(findstring MINGW,$(uname_S)))
 endif
 	NO_MMAP=YesPlease
 	NO_PREAD=YesPlease
-#	NO_OPENSSL=YesPlease
+	NO_OPENSSL=YesPlease
 	NO_CURL=YesPlease
 	NO_SYMLINK_HEAD=YesPlease
 	NO_IPV6=YesPlease
@@ -597,10 +597,10 @@ else
 endif
 endif
 ifdef NO_INET_NTOP
-	LIB_OBJS += compat/inet_ntop.o
+	COMPAT_OBJS += compat/inet_ntop.o
 endif
 ifdef NO_INET_PTON
-	LIB_OBJS += compat/inet_pton.o
+	COMPAT_OBJS += compat/inet_pton.o
 endif
 
 ifdef NO_ICONV
@@ -609,24 +609,6 @@ endif
 
 ifdef OLD_ICONV
 	BASIC_CFLAGS += -DOLD_ICONV
-endif
-
-ifdef PPC_SHA1
-	SHA1_HEADER = "ppc/sha1.h"
-	LIB_OBJS += ppc/sha1.o ppc/sha1ppc.o
-else
-ifdef ARM_SHA1
-	SHA1_HEADER = "arm/sha1.h"
-	LIB_OBJS += arm/sha1.o arm/sha1_arm.o
-else
-ifdef MOZILLA_SHA1
-	SHA1_HEADER = "mozilla-sha1/sha1.h"
-	LIB_OBJS += mozilla-sha1/sha1.o
-else
-	SHA1_HEADER = <openssl/sha.h>
-	EXTLIBS += $(LIB_4_CRYPTO)
-endif
-endif
 endif
 ifdef NO_HSTRERROR
 	COMPAT_CFLAGS += -DNO_HSTRERROR
@@ -679,7 +661,7 @@ LIBS = $(EXTLIBS)
 
 BASIC_CFLAGS += -DSHA1_HEADER='$(SHA1_HEADER_SQ)' \
 	$(COMPAT_CFLAGS)
-LIB_OBJS += $(COMPAT_OBJS)
+GIT_OBJS += $(COMPAT_OBJS)
 
 ALL_CFLAGS += $(BASIC_CFLAGS)
 ALL_LDFLAGS += $(BASIC_LDFLAGS)

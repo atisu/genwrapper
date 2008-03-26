@@ -710,7 +710,7 @@ static void
 opentrace(void)
 {
 	char s[100];
-#ifdef O_APPEND
+#if defined(F_GETFL) && defined(O_APPEND)
 	int flags;
 #endif
 
@@ -735,7 +735,7 @@ opentrace(void)
 			return;
 		}
 	}
-#ifdef O_APPEND
+#if defined(F_GETFL) && defined(O_APPEND)
 	flags = fcntl(fileno(tracefile), F_GETFL, 0);
 	if (flags >= 0)
 		fcntl(fileno(tracefile), F_SETFL, flags | O_APPEND);
@@ -5402,8 +5402,13 @@ evalbackcmd(union node *n, struct backcmd *result)
 	}
 	herefd = saveherefd;
  out:
+#ifdef __MINGW32__
+	TRACE(("evalbackcmd done: fd=%d buf=0x%x nleft=%d fs=0x%x\n",
+		result->fd, result->buf, result->nleft, result->fs));
+#else
 	TRACE(("evalbackcmd done: fd=%d buf=0x%x nleft=%d jp=0x%x\n",
 		result->fd, result->buf, result->nleft, result->jp));
+#endif
 }
 
 /*
