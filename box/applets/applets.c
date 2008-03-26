@@ -643,7 +643,7 @@ void run_applet_and_exit(const char *name, char **argv)
 	current_applet = find_applet_by_name(name);
 	if (current_applet)
 		run_current_applet_and_exit(argv);
-	if (!strncmp(name, "box", 3))
+/*	if (!strncmp(name, "box", 3)) */
 		exit(busybox_main(argv));
 }
 

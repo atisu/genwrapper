@@ -5,6 +5,7 @@
 #endif
 
 extern char **environ;
+extern char *argv0_basename;
 
 #ifdef __MINGW32__
 static char *lookup_prog(const char *dir, const char *cmd, int tryexe)
@@ -165,7 +166,7 @@ int spawnvppe_pipe(const char *cmd, const char **argv, const char **env,
 			if (pout[0] >= 0)
 				close(pout[0]);
 		}
-		environ = env;
+		environ = (char **)env;
 		execvp(cmd, argv);
 		die("exec failed");
 	}
@@ -206,7 +207,7 @@ int spawnvppe_pipe(const char *cmd, const char **argv, const char **env,
 		pid = spawnve(_P_NOWAIT, prog, qargv, env);
 	} else {
 		if (!strcmp(interpr, "sh")) {
-			qargv[0] = "box";
+			qargv[0] = argv0_basename;
 			qargv[1] = "sh";
 			argv[0] = prog;
 			memcpy(&qargv[2], argv, (argc+1)*sizeof(char*));

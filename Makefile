@@ -127,7 +127,7 @@ ALL_CFLAGS = $(CFLAGS)
 ALL_LDFLAGS = $(LDFLAGS)
 STRIP ?= strip
 
-BOINC=yes
+BOINC=no
 
 ifeq ($(BOINC),yes)
 ifdef MINGW
@@ -135,7 +135,7 @@ OPENSSLDIR=C:/Projects/genwrapper/trunk/win32/openssl/
 ALL_LDFLAGS +=-LC:/Projects/boinc_mingw/ -lboinc -lstdc++ -lwinmm
 ALL_CFLAGS += -IC:/Projects/boinc_mingw/include/ -DBOINC 
 else
-BOINC_HOME=/home/atisu/boinc/source/boinc-5.6
+BOINC_HOME=${HOME}/svn/boinc
 ALL_CFLAGS += -I$(BOINC_HOME)/api -I$(BOINC_HOME)/lib -DBOINC
 ALL_LDFLAGS += -L$(BOINC_HOME)/api -lboinc_api -L$(BOINC_HOME)/lib -lboinc -lstdc++ -pthread
 endif
@@ -189,7 +189,7 @@ ifndef SHELL_PATH
 	SHELL_PATH = /bin/sh
 endif
 
-LIB_OBJS = builtin-box.o ctype.o quote.o trace.o usage.o \
+GIT_OBJS = standalone-box.o ctype.o quote.o usage.o \
 	 run-command.o exec_cmd.o spawn-pipe.o
 
 BOX_FILE = box/libbox.a
@@ -702,10 +702,10 @@ export TAR INSTALL DESTDIR SHELL_PATH
 
 ### Build rules
 
-all: $(ALL_PROGRAMS) $(OTHER_PROGRAMS)
+all: $(ALL_PROGRAMS)
 
-strip: $(PROGRAMS) git$X
-	$(STRIP) $(STRIP_OPTS) $(PROGRAMS) git$X
+strip: $(PROGRAMS)
+	$(STRIP) $(STRIP_OPTS) $(PROGRAMS)
 
 configure: configure.ac
 	$(QUIET_GEN)$(RM) $@ $<+ && \
@@ -723,8 +723,6 @@ configure: configure.ac
 
 exec_cmd.o: exec_cmd.c 
 	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) '-DGIT_EXEC_PATH="$(gitexecdir_SQ)"' $<
-builtin-init-db.o: builtin-init-db.c 
-	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) -DDEFAULT_GIT_TEMPLATE_DIR='"$(template_dir_SQ)"' $<
 
 config.o: config.c 
 	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) -DETC_GITCONFIG='"$(ETC_GITCONFIG_SQ)"' $<
@@ -735,9 +733,7 @@ box/shell/ash.o: box/shell/ash_fork.c box/shell/ash_fork.h
 $(BOX_FILE): $(BOX_OBJS)
 	$(QUIET_AR)rm -f $@ && $(AR) rcs $@ $(BOX_OBJS)
 
-gitbox: builtin-box.o ctype.o quote.o trace.o usage.o \
-  run-command.o exec_cmd.o spawn-pipe.o \
-  $(LIB_OBJS) $(BOX_FILE)
+gitbox: $(GIT_OBJS) $(BOX_FILE)
 	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $^ $(ALL_LDFLAGS) $(LIBS)
 
 
@@ -745,8 +741,7 @@ gitbox: builtin-box.o ctype.o quote.o trace.o usage.o \
 
 clean:
 	$(RM) $(ALL_PROGRAMS)
-	$(RM) $(TEST_PROGRAMS)
-	$(RM) $(BOX_OBJS) $(LIB_OBJS) $(BOX_FILE)
+	$(RM) $(BOX_OBJS) $(GIT_OBJS) $(BOX_FILE)
 	$(RM) *.spec *.pyc *.pyo */*.pyc */*.pyo common-cmds.h TAGS tags
 	$(RM) -r autom4te.cache
 	$(RM) configure config.log config.mak.autogen config.mak.append config.status config.cache

@@ -105,6 +105,14 @@
 #endif
 #endif
 
+#ifdef __MINGW32__
+#define DIRECTORY_SEPARATOR  '\\'
+#define PATH_SEPARATOR  ';'
+#else
+#define DIRECTORY_SEPARATOR  '/'
+#define PATH_SEPARATOR  ':'
+#endif
+
 /* General helper functions */
 extern void usage(const char *err) NORETURN;
 extern void die(const char *err, ...) NORETURN __attribute__((format (printf, 1, 2)));

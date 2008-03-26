@@ -849,7 +849,7 @@ static int
 forkshell_init(struct forkshell *fs)
 {
 	static char argv2[32];
-	static const char *argv[4] = { "box", "sh", argv2, NULL };
+	static const char *argv[3] = { "sh", argv2, NULL };
 	int p[2];
 
 	if (_pipe(p, 0, 0) < 0)
@@ -857,7 +857,7 @@ forkshell_init(struct forkshell *fs)
 
 	sprintf(argv2, "subash%d:%s", p[0], fs->fp);
 
-	fs->cmd.git_cmd = 0;
+	fs->cmd.git_cmd = 1;
 	fs->cmd.argv = argv;
 	fs->fd = p[1];
 	return 0;
@@ -959,20 +959,9 @@ tryspawn(const char *cmd, const char **argv, const char **envp)
 
 		a = find_applet_by_name(cmd);
 		if (a) {
-			const char **new_argv;
-			const char **argp;
-			int retval;
-
-			for (argp = argv;*argp;argp++);
-			new_argv = xmalloc(sizeof(const char *)*(argp - argv + 2));
-			new_argv[0] = "box";
-			memcpy(&new_argv[1], &argv[0], (argp - argv + 1)*sizeof(const char*));
-			cp.argv = new_argv;
-			cp.git_cmd = 0;
-			trace_argv_printf(new_argv, -1, "git-box: applet:");
-			retval = set_exitstatus(run_command(&cp), new_argv, NULL);
-			free(new_argv);
-			return retval;
+			cp.argv = argv;
+			cp.git_cmd = 1;
+			return set_exitstatus(run_command(&cp), argv, NULL);
 		}
 	}
 #endif
@@ -982,7 +971,7 @@ tryspawn(const char *cmd, const char **argv, const char **envp)
 	 */
 	cp.cmd = cmd;
 	cp.argv = argv;
-	trace_argv_printf(argv, -1, "git-box: spawn:");
+	trace_puts_args(argv);
 	return set_exitstatus(run_command(&cp), argv, NULL);
 }
 

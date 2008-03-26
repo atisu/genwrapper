@@ -310,17 +310,16 @@ static int try_shell_exec(const char *cmd, const char **argv, const char **env)
 	 *    sh git-foo args...
 	 */
 	for (n = 0; argv[n];) n++;
-	sh_argv = xmalloc((n+3)*sizeof(char*));
+	sh_argv = xmalloc((n+2)*sizeof(char*));
 
-	/* prefer gitbox for shell */
+	/* prefer ourselves for shell */
 	if (!strcmp(interpr,"sh")) {
 		pid_t pid, waiting;
 		int status;
 
-		sh_argv[0] = "box";
-		sh_argv[1] = "sh";
-		sh_argv[2] = cmd;
-		memcpy(&sh_argv[3], &argv[1], n*sizeof(char*));
+		sh_argv[0] = "sh";
+		sh_argv[1] = cmd;
+		memcpy(&sh_argv[2], &argv[1], n*sizeof(char*));
 		pid = spawnve_git_cmd(sh_argv, NULL, NULL, env);
 		if (pid == -1)
 			return 1;
