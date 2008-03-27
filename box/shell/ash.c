@@ -42,23 +42,28 @@
  * a quit signal will generate a core dump.
  */
 #define DEBUG 0
-#define IFS_BROKEN
 #define PROFILE 0
-#if ENABLE_ASH_JOB_CONTROL
-#define JOBS 1
-#else
-#define JOBS 0
-#endif
+
+#define IFS_BROKEN
+
+/* for struct bb_applet, also includes autoconf.h through libbb.h */
+#include "busybox.h"
+
+#define JOBS ENABLE_ASH_JOB_CONTROL
 
 #ifndef __MINGW32__
-#if DEBUG
+
+# if DEBUG
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include <paths.h>
 #endif
+
+#include <paths.h>
+#endif /* !__MINGW32__ */
+
 #include <setjmp.h>
 #include <fnmatch.h>
-#include "busybox.h" /* for struct bb_applet */
 #if JOBS || ENABLE_ASH_READ_NCHARS
 #include <termios.h>
 #endif
@@ -6609,6 +6614,7 @@ tryexec(char *cmd, char **argv, char **envp)
 				run_current_applet_and_exit(argv);
 			}
 			/* re-exec ourselves with the new arguments */
+		   	trace_puts_args(argv);
 			execve(CONFIG_BUSYBOX_EXEC_PATH, argv, envp);
 			/* If they called chroot or otherwise made the binary no longer
 			 * executable, fall through */
@@ -12776,10 +12782,6 @@ exitshell(void)
 	flush_stdout_stderr();
  out:
 	setjobctl(0);
-#ifdef BOINC
-//  fprintf(stderr,"boinc_finish(%d) called\n", 0);
-//	boinc_finish(0);
-#endif    
 	_exit(status);
 	/* NOTREACHED */
 }

@@ -1,9 +1,10 @@
-This is gitbox extracted from git, a stripped down version of busybox
-modified to compile under Windows with MINGW.
+This is gitbox extracted from git and modified to run standalone.
+Gitbox is a stripped down version of busybox modified to compile under
+Windows with MINGW, this version should also compile on Linux and Mac OS X.
 
-Under Linux a simple 'make' is enough to build it, the command to build
+Normally a simple 'make' is enough to build it, the command to build
 it under Windows with the Cygwin compiler is in makecmd-cygwin, the
 command for Mac OS X is in makecmd-darwin.
 
-The executable is built as gitbox but expects to be named "box" otherwise
-it only produces an Applet not found error.
+The directory containing the executable is prepended to PATH for the reexec
+mechanism to find it.
