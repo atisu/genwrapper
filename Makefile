@@ -354,6 +354,7 @@ ifeq ($(uname_S),Darwin)
 	NEEDS_LIBICONV = YesPlease
 	OLD_ICONV = UnfortunatelyYes
 	NO_STRLCPY = YesPlease
+	BASIC_CFLAGS += -fnested-functions
 endif
 ifeq ($(uname_S),SunOS)
 	NEEDS_SOCKET = YesPlease
@@ -659,8 +660,7 @@ SHELL_PATH_SQ = $(subst ','\'',$(SHELL_PATH))
 
 LIBS = $(EXTLIBS)
 
-BASIC_CFLAGS += -DSHA1_HEADER='$(SHA1_HEADER_SQ)' \
-	$(COMPAT_CFLAGS)
+BASIC_CFLAGS += -DSHA1_HEADER='$(SHA1_HEADER_SQ)' $(COMPAT_CFLAGS)
 GIT_OBJS += $(COMPAT_OBJS)
 
 ALL_CFLAGS += $(BASIC_CFLAGS)

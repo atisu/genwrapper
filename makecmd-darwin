@@ -1,1 +1,0 @@
-make CFLAGS="-fnested-functions" 2>&1 | tee build.log
