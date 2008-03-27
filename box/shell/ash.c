@@ -6605,19 +6605,15 @@ tryexec(char *cmd, char **argv, char **envp)
 
 #if ENABLE_FEATURE_SH_STANDALONE
 	if (strchr(cmd, '/') == NULL) {
-		const struct bb_applet *a;
-
-		a = find_applet_by_name(cmd);
-		if (a) {
-			if (a->noexec) {
-				current_applet = a;
-				run_current_applet_and_exit(argv);
-			}
+		int a = find_applet_by_name(cmd);
+		if (a >= 0) {
+			if (APPLET_IS_NOEXEC(a))
+				run_applet_no_and_exit(a, argv);
 			/* re-exec ourselves with the new arguments */
 #if DEBUG
 		   	trace_puts_args(argv);
 #endif
-			execve(CONFIG_BUSYBOX_EXEC_PATH, argv, envp);
+			execve(bb_busybox_exec_path, argv, envp);
 			/* If they called chroot or otherwise made the binary no longer
 			 * executable, fall through */
 		}
@@ -11165,7 +11161,7 @@ exitcmd(int argc, char **argv)
 static int
 echocmd(int argc, char **argv)
 {
-	return bb_echo(argv);
+	return echo_main(argc, argv);
 }
 #endif
 

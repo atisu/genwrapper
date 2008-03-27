@@ -21,9 +21,8 @@ unsigned type xstrtou(_range_sfx)(const char *numstr, int base,
 	int old_errno;
 	char *e;
 
-	/* Disallow '-' and any leading whitespace.  Speed isn't critical here
-	 * since we're parsing commandline args.  So make sure we get the
-	 * actual isspace function rather than a lnumstrer macro implementaion. */
+	/* Disallow '-' and any leading whitespace. Make sure we get the
+	 * actual isspace function rather than a macro implementaion. */
 	if (*numstr == '-' || *numstr == '+' || (isspace)(*numstr))
 		goto inval;
 
@@ -45,13 +44,12 @@ unsigned type xstrtou(_range_sfx)(const char *numstr, int base,
 	 * Note that we also allow nul suffixes with associated multipliers,
 	 * to allow for scaling of the numstr by some default multiplier. */
 	if (suffixes) {
-		while (suffixes->suffix) {
+		while (suffixes->mult) {
 			if (strcmp(suffixes->suffix, e) == 0) {
 				if (XSTR_UTYPE_MAX / suffixes->mult < r)
 					goto range; /* overflow! */
-				++e;
 				r *= suffixes->mult;
-				break;
+				goto chk_range;
 			}
 			++suffixes;
 		}
@@ -61,6 +59,7 @@ unsigned type xstrtou(_range_sfx)(const char *numstr, int base,
 	   It would be easy enough to allow though if desired. */
 	if (*e)
 		goto inval;
+ chk_range:
 	/* Finally, check for range limits. */
 	if (r >= lower && r <= upper)
 		return r;
@@ -127,9 +126,12 @@ type xstrto(_range_sfx)(const char *numstr, int base,
 	type r;
 	const char *p = numstr;
 
-	if (p[0] == '-') {
+	/* NB: if you'll decide to disallow '+':
+	 * at least renice applet needs to allow it */
+	if (p[0] == '+' || p[0] == '-') {
 		++p;
-		++u;	/* two's complement */
+		if (p[0] == '-')
+			++u; /* = <type>_MIN (01111... + 1 == 10000...) */
 	}
 
 	r = xstrtou(_range_sfx)(p, base, 0, u, suffixes);

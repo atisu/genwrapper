@@ -38,10 +38,8 @@ ssize_t full_read(int fd, void *buf, size_t len)
 
 		if (cc < 0)
 			return cc;	/* read() returns -1 on failure. */
-
 		if (cc == 0)
 			break;
-
 		buf = ((char *)buf) + cc;
 		total += cc;
 		len -= cc;
@@ -66,9 +64,7 @@ void xread(int fd, void *buf, size_t count)
 unsigned char xread_char(int fd)
 {
 	char tmp;
-
 	xread(fd, &tmp, 1);
-
 	return tmp;
 }
 
@@ -99,11 +95,11 @@ char *reads(int fd, char *buffer, size_t size)
 
 ssize_t read_close(int fd, void *buf, size_t size)
 {
-	int e;
+	/*int e;*/
 	size = full_read(fd, buf, size);
-	e = errno;
+	/*e = errno;*/
 	close(fd);
-	errno = e;
+	/*errno = e;*/
 	return size;
 }
 
@@ -115,25 +111,29 @@ ssize_t open_read_close(const char *filename, void *buf, size_t size)
 	return read_close(fd, buf, size);
 }
 
+// Read (potentially big) files in one go. File size is estimated by
+// lseek to end.
 void *xmalloc_open_read_close(const char *filename, size_t *sizep)
 {
 	char *buf;
 	size_t size = sizep ? *sizep : INT_MAX;
-	int fd = xopen(filename, O_RDONLY);
+	int fd;
+	off_t len;
+
+	fd = xopen(filename, O_RDONLY);
 	/* /proc/N/stat files report len 0 here */
 	/* In order to make such files readable, we add small const */
-	off_t len = xlseek(fd, 0, SEEK_END) + 256;
+	len = xlseek(fd, 0, SEEK_END) | 0x3ff; /* + up to 1k */
 	xlseek(fd, 0, SEEK_SET);
-
-	if (len > size)
-		bb_error_msg_and_die("file '%s' is too big", filename);
-	size = len;
+	if (len < size)
+		size = len;
 	buf = xmalloc(size + 1);
 	size = read_close(fd, buf, size);
 	if ((ssize_t)size < 0)
 		bb_perror_msg_and_die("'%s'", filename);
 	xrealloc(buf, size + 1);
 	buf[size] = '\0';
-	if (sizep) *sizep = size;
+	if (sizep)
+		*sizep = size;
 	return buf;
 }

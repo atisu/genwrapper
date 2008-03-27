@@ -16,7 +16,7 @@
 /* This is a NOFORK applet. Be very careful! */
 
 
-int rmdir_main(int argc, char **argv);
+int rmdir_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int rmdir_main(int argc, char **argv)
 {
 	int status = EXIT_SUCCESS;
@@ -24,7 +24,7 @@ int rmdir_main(int argc, char **argv)
 	int do_dot;
 	char *path;
 
-	flags = getopt32(argc, argv, "p");
+	flags = getopt32(argv, "p");
 	argv += optind;
 
 	if (!*argv) {

@@ -117,13 +117,12 @@ SPLIT_SUBDIR    = 2,
 
 /* colored LS support by JaWi, janwillem.janssen@lxtreme.nl */
 #if ENABLE_FEATURE_LS_COLOR
-static int show_color;
+static smallint show_color;
 /* long option entry used only for --color, which has no short option
  * equivalent */
-static const struct option ls_color_opt[] = {
-	{ "color", optional_argument, NULL, 1 },
-	{ NULL, 0, NULL, 0 }
-};
+static const char ls_color_opt[] ALIGN1 =
+	"color\0" Optional_argument "\xff" /* no short equivalent */
+	;
 #else
 enum { show_color = 0 };
 #endif
@@ -132,8 +131,8 @@ enum { show_color = 0 };
  * a directory entry and its stat info are stored here
  */
 struct dnode {                  /* the basic node */
-	char *name;             /* the dir entry name */
-	char *fullname;         /* the dir entry name */
+	const char *name;             /* the dir entry name */
+	const char *fullname;         /* the dir entry name */
 	int   allocated;
 	struct stat dstat;      /* the file stat info */
 	USE_SELINUX(security_context_t sid;)
@@ -159,7 +158,7 @@ enum {
 
 static int status = EXIT_SUCCESS;
 
-static struct dnode *my_stat(char *fullname, char *name, int force_follow)
+static struct dnode *my_stat(const char *fullname, const char *name, int force_follow)
 {
 	struct stat dstat;
 	struct dnode *cur;
@@ -172,7 +171,7 @@ static struct dnode *my_stat(char *fullname, char *name, int force_follow)
 		}
 #endif
 		if (stat(fullname, &dstat)) {
-			bb_perror_msg("%s", fullname);
+			bb_simple_perror_msg(fullname);
 			status = EXIT_FAILURE;
 			return 0;
 		}
@@ -183,7 +182,7 @@ static struct dnode *my_stat(char *fullname, char *name, int force_follow)
 		}
 #endif
 		if (lstat(fullname, &dstat)) {
-			bb_perror_msg("%s", fullname);
+			bb_simple_perror_msg(fullname);
 			status = EXIT_FAILURE;
 			return 0;
 		}
@@ -241,7 +240,7 @@ static int count_dirs(struct dnode **dn, int nfiles, int notsubdirs)
 		return 0;
 	dirs = 0;
 	for (i = 0; i < nfiles; i++) {
-		char *name;
+		const char *name;
 		if (!S_ISDIR(dn[i]->dstat.st_mode))
 			continue;
 		name = dn[i]->name;
@@ -288,7 +287,7 @@ static void dfree(struct dnode **dnp, int nfiles)
 	for (i = 0; i < nfiles; i++) {
 		struct dnode *cur = dnp[i];
 		if (cur->allocated)
-			free(cur->fullname);	/* free the filename */
+			free((char*)cur->fullname);	/* free the filename */
 		free(cur);		/* free the dnode */
 	}
 	free(dnp);			/* free the array holding the dnode pointers */
@@ -320,7 +319,7 @@ static struct dnode **splitdnarray(struct dnode **dn, int nfiles, int which)
 	/* copy the entrys into the file or dir array */
 	for (d = i = 0; i < nfiles; i++) {
 		if (S_ISDIR(dn[i]->dstat.st_mode)) {
-			char *name;
+			const char *name;
 			if (!(which & (SPLIT_DIR|SPLIT_SUBDIR)))
 				continue;
 			name = dn[i]->name;
@@ -452,7 +451,7 @@ static void showdirs(struct dnode **dn, int ndirs, int first)
 	for (i = 0; i < ndirs; i++) {
 		if (all_fmt & (DISP_DIRNAME | DISP_RECURSIVE)) {
 			if (!first)
-				puts("");
+				bb_putchar('\n');
 			first = 0;
 			printf("%s:\n", dn[i]->fullname);
 		}
@@ -513,7 +512,7 @@ static struct dnode **list_dir(const char *path)
 				continue;
 		}
 		fullname = concat_path_file(path, entry->d_name);
-		cur = my_stat(fullname, strrchr(fullname, '/') + 1, 0);
+		cur = my_stat(fullname, bb_basename(fullname), 0);
 		if (!cur) {
 			free(fullname);
 			continue;
@@ -604,20 +603,20 @@ static int list_single(struct dnode *dn)
 			column += printf("%-8d %-8d", dn->dstat.st_uid, dn->dstat.st_gid);
 			break;
 		case LIST_SIZE:
-#ifdef __MINGW32__
-			column += printf("%4d, %3d ", 0, 0);
-#else
+#ifndef __MINGW32__
 		case LIST_DEV:
 			if (S_ISBLK(dn->dstat.st_mode) || S_ISCHR(dn->dstat.st_mode)) {
 				column += printf("%4d, %3d ", (int) major(dn->dstat.st_rdev),
 					   (int) minor(dn->dstat.st_rdev));
 			} else {
+#endif
 				if (all_fmt & LS_DISP_HR) {
 					column += printf("%9s ",
 						make_human_readable_str(dn->dstat.st_size, 1, 0));
 				} else {
 					column += printf("%9"OFF_FMT"d ", (off_t) dn->dstat.st_size);
 				}
+#ifndef __MINGW32__
 			}
 #endif
 			break;
@@ -719,7 +718,8 @@ static int list_single(struct dnode *dn)
 /* "[-]SXvThw", GNU options, busybox optionally supports */
 /* "[-]K", SELinux mandated options, busybox optionally supports */
 /* "[-]e", I think we made this one up */
-static const char ls_options[] = "Cadil1gnsxAk"
+static const char ls_options[] ALIGN1 =
+	"Cadil1gnsxAk"
 	USE_FEATURE_LS_TIMESTAMPS("cetu")
 	USE_FEATURE_LS_SORTFILES("SXrv")
 	USE_FEATURE_LS_FILETYPES("Fp")
@@ -791,7 +791,7 @@ static const unsigned opt_flags[] = {
 /* THIS IS A "SAFE" APPLET, main() MAY BE CALLED INTERNALLY FROM SHELL */
 /* BE CAREFUL! */
 
-int ls_main(int argc, char **argv);
+int ls_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int ls_main(int argc, char **argv)
 {
 	struct dnode **dnd;
@@ -820,7 +820,7 @@ int ls_main(int argc, char **argv)
 
 #if ENABLE_FEATURE_AUTOWIDTH
 	/* Obtain the terminal width */
-	get_terminal_width_height(STDOUT_FILENO, &terminal_width, NULL);
+	get_terminal_width_height(STDIN_FILENO, &terminal_width, NULL);
 	/* Go one less... */
 	terminal_width--;
 #endif
@@ -828,14 +828,14 @@ int ls_main(int argc, char **argv)
 	/* process options */
 	USE_FEATURE_LS_COLOR(applet_long_options = ls_color_opt;)
 #if ENABLE_FEATURE_AUTOWIDTH
-	opt = getopt32(argc, argv, ls_options, &tabstops_str, &terminal_width_str
+	opt = getopt32(argv, ls_options, &tabstops_str, &terminal_width_str
 				USE_FEATURE_LS_COLOR(, &color_opt));
 	if (tabstops_str)
 		tabstops = xatou(tabstops_str);
 	if (terminal_width_str)
 		terminal_width = xatou(terminal_width_str);
 #else
-	opt = getopt32(argc, argv, ls_options USE_FEATURE_LS_COLOR(, &color_opt));
+	opt = getopt32(argv, ls_options USE_FEATURE_LS_COLOR(, &color_opt));
 #endif
 	for (i = 0; opt_flags[i] != (1U<<31); i++) {
 		if (opt & (1 << i)) {

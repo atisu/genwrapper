@@ -23,7 +23,7 @@
 */
 
 /* These are sort types */
-static const char OPT_STR[] = "ngMucszbrdfimS:T:o:k:t:";
+static const char OPT_STR[] ALIGN1 = "ngMucszbrdfimS:T:o:k:t:";
 enum {
 	FLAG_n  = 1,            /* Numeric sort */
 	FLAG_g  = 2,            /* Sort using strtod() */
@@ -32,7 +32,7 @@ enum {
 	FLAG_u  = 8,            /* Unique */
 	FLAG_c  = 0x10,         /* Check: no output, exit(!ordered) */
 	FLAG_s  = 0x20,         /* Stable sort, no ascii fallback at end */
-	FLAG_z  = 0x40,         /* Input is null terminated, not \n */
+	FLAG_z  = 0x40,         /* Input and output is NUL terminated, not \n */
 /* These can be applied to search keys, the previous four can't */
 	FLAG_b  = 0x80,         /* Ignore leading blanks */
 	FLAG_r  = 0x100,        /* Reverse */
@@ -274,7 +274,7 @@ static unsigned str2u(char **str)
 }
 #endif
 
-int sort_main(int argc, char **argv);
+int sort_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int sort_main(int argc, char **argv)
 {
 	FILE *fp, *outfile = stdout;
@@ -288,9 +288,9 @@ int sort_main(int argc, char **argv)
 
 	/* Parse command line options */
 	/* -o and -t can be given at most once */
-	opt_complementary = "?:o--o:t--t:" /* -t, -o: maximum one of each */
+	opt_complementary = "o--o:t--t:" /* -t, -o: maximum one of each */
 			"k::"; /* -k takes list */
-	getopt32(argc, argv, OPT_STR, &str_ignored, &str_ignored, &str_o, &lst_k, &str_t);
+	getopt32(argv, OPT_STR, &str_ignored, &str_ignored, &str_o, &lst_k, &str_t);
 #if ENABLE_FEATURE_SORT_BIG
 	if (option_mask32 & FLAG_o) outfile = xfopen(str_o, "w");
 	if (option_mask32 & FLAG_t) {
@@ -374,9 +374,9 @@ int sort_main(int argc, char **argv)
 		for (i = 1; i < linecount; i++)
 			if (compare_keys(&lines[i-1], &lines[i]) > j) {
 				fprintf(stderr, "Check line %d\n", i);
-				return 1;
+				return EXIT_FAILURE;
 			}
-		return 0;
+		return EXIT_SUCCESS;
 	}
 #endif
 	/* Perform the actual sort */
@@ -396,8 +396,9 @@ int sort_main(int argc, char **argv)
 		if (linecount) linecount = flag+1;
 	}
 	/* Print it */
+	flag = (option_mask32 & FLAG_z) ? '\0' : '\n';
 	for (i = 0; i < linecount; i++)
-		fprintf(outfile, "%s\n", lines[i]);
+		fprintf(outfile, "%s%c", lines[i], flag);
 
 	fflush_stdout_and_exit(EXIT_SUCCESS);
 }

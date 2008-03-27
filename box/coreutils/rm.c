@@ -19,7 +19,7 @@
 
 /* This is a NOFORK applet. Be very careful! */
 
-int rm_main(int argc, char **argv);
+int rm_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int rm_main(int argc, char **argv)
 {
 	int status = 0;
@@ -27,7 +27,7 @@ int rm_main(int argc, char **argv)
 	unsigned opt;
 
 	opt_complementary = "f-i:i-f";
-	opt = getopt32(argc, argv, "fiRr");
+	opt = getopt32(argv, "fiRr");
 	argv += optind;
 	if (opt & 1)
 		flags |= FILEUTILS_FORCE;
@@ -38,7 +38,7 @@ int rm_main(int argc, char **argv)
 
 	if (*argv != NULL) {
 		do {
-			const char *base = bb_get_last_path_component(*argv);
+			const char *base = bb_get_last_path_component_strip(*argv);
 
 			if (DOT_OR_DOTDOT(base)) {
 				bb_error_msg("cannot remove '.' or '..'");

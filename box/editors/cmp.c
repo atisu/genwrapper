@@ -33,16 +33,16 @@ static FILE *cmp_xfopen_input(const char *filename)
 	xfunc_die();	/* We already output an error message. */
 }
 
-static const char fmt_eof[] = "cmp: EOF on %s\n";
-static const char fmt_differ[] = "%s %s differ: char %"OFF_FMT"d, line %d\n";
+static const char fmt_eof[] ALIGN1 = "cmp: EOF on %s\n";
+static const char fmt_differ[] ALIGN1 = "%s %s differ: char %"OFF_FMT"d, line %d\n";
 // This fmt_l_opt uses gnu-isms.  SUSv3 would be "%.0s%.0s%"OFF_FMT"d %o %o\n"
-static const char fmt_l_opt[] = "%.0s%.0s%"OFF_FMT"d %3o %3o\n";
+static const char fmt_l_opt[] ALIGN1 = "%.0s%.0s%"OFF_FMT"d %3o %3o\n";
 
-static const char opt_chars[] = "sl";
+static const char opt_chars[] ALIGN1 = "sl";
 #define CMP_OPT_s (1<<0)
 #define CMP_OPT_l (1<<1)
 
-int cmp_main(int argc, char **argv);
+int cmp_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int cmp_main(int argc, char **argv)
 {
 	FILE *fp1, *fp2, *outfile = stdout;
@@ -57,11 +57,11 @@ int cmp_main(int argc, char **argv)
 
 	xfunc_error_retval = 2;	/* 1 is returned if files are different. */
 
-	opt_complementary = "?:-1"
+	opt_complementary = "-1"
 			USE_DESKTOP(":?4")
 			SKIP_DESKTOP(":?2")
 			":l--s:s--l";
-	opt = getopt32(argc, argv, opt_chars);
+	opt = getopt32(argv, opt_chars);
 	argv += optind;
 
 	filename1 = *argv;

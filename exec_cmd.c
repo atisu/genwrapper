@@ -5,7 +5,7 @@
 #define EXEC_PATH_ENVIRONMENT "GIT_EXEC_PATH"                                   
 
 extern char **environ;
-extern char *argv0_basename;
+extern char *bb_busybox_exec_path;
 static const char *current_exec_path;
 
 static const char *builtin_exec_path(void)
@@ -125,7 +125,7 @@ int spawnve_git_cmd(const char **argv, int pin[2], int pout[2], const char **env
 	for (rc = 0;argv[rc];rc++);
 
 	new_argv = malloc(sizeof(char*)*(rc+2)); /* box command plus null */
-	new_argv[0] = argv0_basename;
+	new_argv[0] = bb_busybox_exec_path;
 	new_argv[1] = argv[0];
 	memcpy(&new_argv[2], &argv[1], sizeof(char*)*rc);
 

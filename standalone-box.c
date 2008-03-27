@@ -1,12 +1,6 @@
 #include <ctype.h>
-#include "git-compat-util.h"
-#include "exec_cmd.h"
+#include "busybox.h"
 #include "quote.h"
-
-/* Global variable to hold the name of the command */
-char *argv0_basename;
-
-int gitbox_main(int argc, char **argv);
 
 static void prepend_to_path(const char *dir, int len)
 {
@@ -33,6 +27,7 @@ static void prepend_to_path(const char *dir, int len)
 int main(int argc, char **argv)
 {
 	const char *exec_path = NULL;
+	char *slash;
 
 	/*
 	 * Take the basename of argv[0] as the command
@@ -40,9 +35,9 @@ int main(int argc, char **argv)
 	 * if it's an absolute path and we don't have
 	 * anything better or at least the current working directory.
 	 */
-	argv0_basename = strrchr(argv[0], DIRECTORY_SEPARATOR);
-	if(argv0_basename) {
-		*argv0_basename++ = '\0';
+	slash = strrchr(argv[0], DIRECTORY_SEPARATOR);
+	if(slash) {
+		*slash++ = '\0';
 #ifdef __MINGW32__
 		if (argv[0][1] == ':') {
 #else
@@ -54,18 +49,18 @@ int main(int argc, char **argv)
 			char *cwd;
 
 			cwd = getcwd(NULL, 0);
-			chdir(argv[0]); /* may fail but then we take cwdir */
+			chdir(argv[0]);
+			/* chdir may fail but then we take the current dir */
 			exec_path = getcwd(NULL, 0);
 			if (cwd) {
 				chdir(cwd);
 				free(cwd);
 			}
 		}
-		argv[0] = argv0_basename;
-	} else {
-		argv0_basename = argv[0];
+		argv[0] = slash;
 	}
-	if (!argv0_basename) die("Could not determine basename");
+	bb_busybox_exec_path = strdup(argv[0]);
+	if (!bb_busybox_exec_path) die("Could not determine my name");
 
 	/*
 	 * We search for git commands in the following order:
@@ -82,9 +77,9 @@ int main(int argc, char **argv)
 	if (getenv("GIT_TRACE")) {
 		char *argv_str = sq_quote_argv((const char**)argv, -1);
 
-		fprintf(stderr, "exec_path=%s, basename=%s\n", exec_path, argv0_basename);
+		fprintf(stderr, "exec_path=%s, basename=%s\n", exec_path, bb_busybox_exec_path);
 		fprintf(stderr, "git-box:%s\n", argv_str);
 		free(argv_str);
 	}
-	return gitbox_main(argc, argv);
+	return lbb_main(argc, argv);
 }

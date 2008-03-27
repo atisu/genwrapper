@@ -200,7 +200,6 @@ BOX_H = \
 	usage.h xatonum.h xregex.h
 
 BOX_OBJS = \
-	applets/applets.o \
 	archival/bbunzip.o \
 	archival/gzip.o \
 	archival/libunarchive/check_header_gzip.o \
@@ -225,10 +224,8 @@ BOX_OBJS = \
 	coreutils/cat.o \
 	coreutils/chmod.o \
 	coreutils/cp.o \
-	coreutils/cmp.o \
 	coreutils/cut.o \
 	coreutils/date.o \
-	coreutils/diff.o \
 	coreutils/dirname.o \
 	coreutils/echo.o \
 	coreutils/env.o \
@@ -261,11 +258,15 @@ BOX_OBJS = \
 	coreutils/yes.o \
 	debianutils/which.o  \
 	editors/awk.o \
+	editors/cmp.o \
+	editors/diff.o \
 	editors/patch.o \
 	editors/sed.o \
 	findutils/find.o \
 	findutils/grep.o \
+	libbb/appletlib.o \
 	libbb/ask_confirmation.o \
+	libbb/bb_basename.o \
 	libbb/bb_do_delay.o \
 	libbb/bb_strtonum.o \
 	libbb/chomp.o \
@@ -290,6 +291,7 @@ BOX_OBJS = \
 	libbb/herror_msg_and_die.o \
 	libbb/herror_msg.o \
 	libbb/info_msg.o \
+	libbb/inode_hash.o \
 	libbb/isdirectory.o \
 	libbb/last_char_is.o \
 	libbb/llist.o \
@@ -313,7 +315,6 @@ BOX_OBJS = \
 	libbb/trim.o \
 	libbb/u_signal_names.o \
 	libbb/verror_msg.o \
-	libbb/vperror_msg.o \
 	libbb/warn_ignoring_args.o \
 	libbb/wfopen_input.o \
 	libbb/wfopen.o \
@@ -328,7 +329,7 @@ ifeq ($(BOINC),yes)
 BOX_OBJS += boinc/boinc.o
 endif
 
-BOX_CFLAGS = -Ibox/include -Ibox/libbb -I. -DBB_VER=\"$(GIT_VERSION)\"
+BOX_CFLAGS = -Ibox/include -Ibox/libbb -I. -DBB_VER=\"$(GIT_VERSION)\" -DBB_BT=AUTOCONF_TIMESTAMP
 
 BOX_H := $(patsubst %.h,box/include/%.h,$(BOX_H))
 BOX_OBJS := $(patsubst %.o,box/%.o,$(BOX_OBJS))
@@ -709,6 +710,14 @@ exec_cmd.o: exec_cmd.c
 config.o: config.c 
 	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) -DETC_GITCONFIG='"$(ETC_GITCONFIG_SQ)"' $<
 
+box/applets/applet_tables: box/applets/applet_tables.o
+	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $^
+
+box/include/applet_tables.h: box/include/applets.h box/applets/applet_tables
+	$(QUIET_GEN)box/applets/applet_tables box/include/applet_tables.h
+
+box/libbb/appletlib.o: box/include/applet_tables.h
+
 $(BOX_OBJS): $(BOX_H) git-compat-util.h exec_cmd.h quote.h run-command.h spawn-pipe.h
 box/shell/ash.o: box/shell/ash_fork.c box/shell/ash_fork.h
 
@@ -724,6 +733,7 @@ gitbox: $(GIT_OBJS) $(BOX_FILE)
 clean:
 	$(RM) $(ALL_PROGRAMS)
 	$(RM) $(BOX_OBJS) $(GIT_OBJS) $(BOX_FILE)
+	$(RM) box/applets/applet_tables.o box/applets/applet_tables box/include/applet_tables.h
 	$(RM) *.spec *.pyc *.pyo */*.pyc */*.pyo common-cmds.h TAGS tags
 	$(RM) -r autom4te.cache
 	$(RM) configure config.log config.mak.autogen config.mak.append config.status config.cache

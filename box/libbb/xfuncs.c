@@ -15,7 +15,7 @@
  * fail, so callers never need to check for errors.  If it returned, it
  * succeeded. */
 
-#if !defined(DMALLOC)
+#ifndef DMALLOC
 /* dmalloc provides variants of these that do abort() on failure.
  * Since dmalloc's prototypes overwrite the impls here as they are
  * included after these prototypes in libbb.h, all is well.
@@ -28,10 +28,8 @@ void *malloc_or_warn(size_t size)
 		bb_error_msg(bb_msg_memory_exhausted);
 	return ptr;
 }
-#endif /* DMALLOC */
 
-#if 0
-#if !defined(DMALLOC)
+#if 0 /* use the ones in git-compat-util.h */
 // Die if we can't allocate size bytes of memory.
 void *xmalloc(size_t size)
 {
@@ -51,8 +49,8 @@ void *xrealloc(void *ptr, size_t size)
 		bb_error_msg_and_die(bb_msg_memory_exhausted);
 	return ptr;
 }
-#endif /* DMALLOC */
 #endif
+#endif /* DMALLOC */
 
 // Die if we can't allocate and zero size bytes of memory.
 void *xzalloc(size_t size)
@@ -62,7 +60,7 @@ void *xzalloc(size_t size)
 	return ptr;
 }
 
-#if 0 /* prefer mingw implementation over these */
+#if 0 /* use the ones in git-compat-util.h */
 // Die if we can't copy a string to freshly allocated memory.
 char * xstrdup(const char *s)
 {
@@ -152,28 +150,36 @@ int open_or_warn(const char *pathname, int flags)
 	return open3_or_warn(pathname, flags, 0666);
 }
 
-void xpipe(int filedes[2])
-{
-	if (pipe(filedes))
-		bb_perror_msg_and_die("can't create pipe");
-}
-
 void xunlink(const char *pathname)
 {
 	if (unlink(pathname))
 		bb_perror_msg_and_die("can't remove file '%s'", pathname);
 }
 
-#ifndef __MINGW32__
-// Turn on nonblocking I/O on a fd
-int ndelay_on(int fd)
+void xrename(const char *oldpath, const char *newpath)
 {
-	return fcntl(fd, F_SETFL, fcntl(fd,F_GETFL,0) | O_NONBLOCK);
+	if (rename(oldpath, newpath))
+		bb_perror_msg_and_die("can't move '%s' to '%s'", oldpath, newpath);
 }
 
-int ndelay_off(int fd)
+int rename_or_warn(const char *oldpath, const char *newpath)
 {
-	return fcntl(fd, F_SETFL, fcntl(fd,F_GETFL,0) & ~O_NONBLOCK);
+	int n = rename(oldpath, newpath);
+	if (n)
+		bb_perror_msg("can't move '%s' to '%s'", oldpath, newpath);
+	return n;
+}
+
+void xpipe(int filedes[2])
+{
+	if (pipe(filedes))
+		bb_perror_msg_and_die("can't create pipe");
+}
+
+void xdup2(int from, int to)
+{
+	if (dup2(from, to) != to)
+		bb_perror_msg_and_die("can't duplicate file descriptor");
 }
 
 // "Renumber" opened fd
@@ -181,13 +187,11 @@ void xmove_fd(int from, int to)
 {
 	if (from == to)
 		return;
-	if (dup2(from, to) != to)
-		bb_perror_msg_and_die("can't duplicate file descriptor");
+	xdup2(from, to);
 	close(from);
 }
-#endif
 
-#if 0
+#if 0 /* use the ones in git-compat-util.h */
 // Die with an error message if we can't write the entire buffer.
 void xwrite(int fd, const void *buf, size_t count)
 {
@@ -234,97 +238,116 @@ void xfflush_stdout(void)
 	}
 }
 
-#ifndef __MINGW32__
-void sig_block(int sig)
-{
-	sigset_t ss;
-	sigemptyset(&ss);
-	sigaddset(&ss, sig);
-	sigprocmask(SIG_BLOCK, &ss, NULL);
-}
-
-void sig_unblock(int sig)
-{
-	sigset_t ss;
-	sigemptyset(&ss);
-	sigaddset(&ss, sig);
-	sigprocmask(SIG_UNBLOCK, &ss, NULL);
-}
-
-#if 0
-void sig_blocknone(void)
-{
-	sigset_t ss;
-	sigemptyset(&ss);
-	sigprocmask(SIG_SETMASK, &ss, NULL);
-}
-#endif
-
-void sig_catch(int sig, void (*f)(int))
-{
-	struct sigaction sa;
-	sa.sa_handler = f;
-	sa.sa_flags = 0;
-	sigemptyset(&sa.sa_mask);
-	sigaction(sig, &sa, NULL);
-}
-
-void sig_pause(void)
-{
-	sigset_t ss;
-	sigemptyset(&ss);
-	sigsuspend(&ss);
-}
-#endif
-
-
 void xsetenv(const char *key, const char *value)
 {
 	if (setenv(key, value, 1))
 		bb_error_msg_and_die(bb_msg_memory_exhausted);
 }
 
-// Converts unsigned long long value into compact 4-char
-// representation. Examples: "1234", "1.2k", " 27M", "123T"
-// Fifth char is always '\0'
-void smart_ulltoa5(unsigned long long ul, char buf[5])
+/* Converts unsigned long long value into compact 4-char
+ * representation. Examples: "1234", "1.2k", " 27M", "123T"
+ * String is not terminated (buf[4] is untouched) */
+void smart_ulltoa4(unsigned long long ul, char buf[5], const char *scale)
 {
 	const char *fmt;
 	char c;
-	unsigned v,idx = 0;
-	ul *= 10;
-	if (ul > 9999*10) { // do not scale if 9999 or less
-		while (ul >= 10000) {
+	unsigned v, u, idx = 0;
+
+	if (ul > 9999) { // do not scale if 9999 or less
+		ul *= 10;
+		do {
 			ul /= 1024;
 			idx++;
-		}
+		} while (ul >= 10000);
 	}
 	v = ul; // ullong divisions are expensive, avoid them
 
 	fmt = " 123456789";
-	if (!idx) {		// 9999 or less: use 1234 format
-		c = buf[0] = " 123456789"[v/10000];
+	u = v / 10;
+	v = v % 10;
+	if (!idx) {
+		// 9999 or less: use "1234" format
+		// u is value/10, v is last digit
+		c = buf[0] = " 123456789"[u/100];
 		if (c != ' ') fmt = "0123456789";
-		c = buf[1] = fmt[v/1000%10];
+		c = buf[1] = fmt[u/10%10];
 		if (c != ' ') fmt = "0123456789";
-		buf[2] = fmt[v/100%10];
-		buf[3] = "0123456789"[v/10%10];
+		buf[2] = fmt[u%10];
+		buf[3] = "0123456789"[v];
 	} else {
-		if (v >= 10*10) {	// scaled value is >=10: use 123M format
-			c = buf[0] = " 123456789"[v/1000];
+		// u is value, v is 1/10ths (allows for 9.2M format)
+		if (u >= 10) {
+			// value is >= 10: use "123M', " 12M" formats
+			c = buf[0] = " 123456789"[u/100];
 			if (c != ' ') fmt = "0123456789";
-			buf[1] = fmt[v/100%10];
-			buf[2] = "0123456789"[v/10%10];
-		} else {	// scaled value is <10: use 1.2M format
-			buf[0] = "0123456789"[v/10];
+			v = u % 10;
+			u = u / 10;
+			buf[1] = fmt[u%10];
+		} else {
+			// value is < 10: use "9.2M" format
+			buf[0] = "0123456789"[u];
 			buf[1] = '.';
-			buf[2] = "0123456789"[v%10];
 		}
-		// see http://en.wikipedia.org/wiki/Tera
-		buf[3] = " kMGTPEZY"[idx];
+		buf[2] = "0123456789"[v];
+		buf[3] = scale[idx]; /* typically scale = " kmgt..." */
 	}
-	buf[4] = '\0';
 }
+
+/* Converts unsigned long long value into compact 5-char representation.
+ * String is not terminated (buf[5] is untouched) */
+void smart_ulltoa5(unsigned long long ul, char buf[6], const char *scale)
+{
+	const char *fmt;
+	char c;
+	unsigned v, u, idx = 0;
+
+	if (ul > 99999) { // do not scale if 99999 or less
+		ul *= 10;
+		do {
+			ul /= 1024;
+			idx++;
+		} while (ul >= 100000);
+	}
+	v = ul; // ullong divisions are expensive, avoid them
+
+	fmt = " 123456789";
+	u = v / 10;
+	v = v % 10;
+	if (!idx) {
+		// 99999 or less: use "12345" format
+		// u is value/10, v is last digit
+		c = buf[0] = " 123456789"[u/1000];
+		if (c != ' ') fmt = "0123456789";
+		c = buf[1] = fmt[u/100%10];
+		if (c != ' ') fmt = "0123456789";
+		c = buf[2] = fmt[u/10%10];
+		if (c != ' ') fmt = "0123456789";
+		buf[3] = fmt[u%10];
+		buf[4] = "0123456789"[v];
+	} else {
+		// value has been scaled into 0..9999.9 range
+		// u is value, v is 1/10ths (allows for 92.1M format)
+		if (u >= 100) {
+			// value is >= 100: use "1234M', " 123M" formats
+			c = buf[0] = " 123456789"[u/1000];
+			if (c != ' ') fmt = "0123456789";
+			c = buf[1] = fmt[u/100%10];
+			if (c != ' ') fmt = "0123456789";
+			v = u % 10;
+			u = u / 10;
+			buf[2] = fmt[u%10];
+		} else {
+			// value is < 100: use "92.1M" format
+			c = buf[0] = " 123456789"[u/10];
+			if (c != ' ') fmt = "0123456789";
+			buf[1] = fmt[u%10];
+			buf[2] = '.';
+		}
+		buf[3] = "0123456789"[v];
+		buf[4] = scale[idx]; /* typically scale = " kmgt..." */
+	}
+}
+
 
 // Convert unsigned integer to ascii, writing into supplied buffer.
 // A truncated result contains the first few digits of the result ala strncpy.
@@ -399,7 +422,7 @@ char *bin2hex(char *p, const char *cp, int count)
 	return p;
 }
 
-#if (!defined __MINGW32__ && !defined __APPLE__)
+#if ENABLE_SETUIDGID
 // Die with an error message if we can't set gid.  (Because resource limits may
 // limit this user to a given number of processes, and if that fills up the
 // setgid() will fail and we'll _still_be_root_, which is bad.)
@@ -415,6 +438,7 @@ void xsetuid(uid_t uid)
 }
 
 // Return how long the file at fd is, if there's any way to determine it.
+#ifdef UNUSED
 off_t fdlength(int fd)
 {
 	off_t bottom = 0, top = 0, pos;
@@ -453,14 +477,24 @@ off_t fdlength(int fd)
 
 	return pos + 1;
 }
+#endif /* UNUSED */
 #endif
+
+int bb_putchar(int ch)
+{
+	/* time.c needs putc(ch, stdout), not putchar(ch).
+	 * it does "stdout = stderr;", but then glibc's putchar()
+	 * doesn't work as expected. bad glibc, bad */
+	return putc(ch, stdout);
+}
+
 // Die with an error message if we can't malloc() enough space and do an
 // sprintf() into that space.
 char *xasprintf(const char *format, ...)
 {
 	va_list p;
 	int r;
-	char *string_ptr = xmalloc(1024);
+	char *string_ptr;
 
 #if 0
 	// GNU extension
@@ -470,18 +504,16 @@ char *xasprintf(const char *format, ...)
 #else
 	// Bloat for systems that haven't got the GNU extension.
 	va_start(p, format);
-	r = vsnprintf(string_ptr, 1024, format, p);
+	r = vsnprintf(NULL, 0, format, p);
 	va_end(p);
-	if (r > 0) {
-		free(string_ptr);
-		string_ptr = xmalloc(r+1);
-		va_start(p, format);
-		r = vsnprintf(string_ptr, r+1, format, p);
-		va_end(p);
-	}
+	string_ptr = xmalloc(r+1);
+	va_start(p, format);
+	r = vsnprintf(string_ptr, r+1, format, p);
+	va_end(p);
 #endif
 
-	if (r < 0) bb_error_msg_and_die(bb_msg_memory_exhausted);
+	if (r < 0)
+		bb_error_msg_and_die(bb_msg_memory_exhausted);
 	return string_ptr;
 }
 
@@ -491,7 +523,7 @@ int fdprintf(int fd, const char *format, ...)
 {
 	va_list p;
 	int r;
-	char *string_ptr = xmalloc(1024);
+	char *string_ptr;
 
 #if 0
 	// GNU extension
@@ -501,13 +533,12 @@ int fdprintf(int fd, const char *format, ...)
 #else
 	// Bloat for systems that haven't got the GNU extension.
 	va_start(p, format);
-	r = vsnprintf(string_ptr, 1024, format, p);
+	r = vsnprintf(NULL, 0, format, p) + 1;
 	va_end(p);
-	if (r > 0) {
-		free(string_ptr);
-		string_ptr = xmalloc(r+1);
+	string_ptr = malloc(r);
+	if (string_ptr) {
 		va_start(p, format);
-		r = vsnprintf(string_ptr, r+1, format, p);
+		r = vsnprintf(string_ptr, r, format, p);
 		va_end(p);
 	}
 #endif
@@ -629,35 +660,3 @@ void selinux_or_die(void)
 	bb_error_msg_and_die("SELinux support is disabled");
 #endif
 }
-
-/* It is perfectly ok to pass in a NULL for either width or for
- * height, in which case that value will not be set.  */
-#ifndef __MINGW32__
-int get_terminal_width_height(const int fd, int *width, int *height)
-{
-	struct winsize win = { 0, 0, 0, 0 };
-	int ret = ioctl(fd, TIOCGWINSZ, &win);
-
-	if (height) {
-		if (!win.ws_row) {
-			char *s = getenv("LINES");
-			if (s) win.ws_row = atoi(s);
-		}
-		if (win.ws_row <= 1 || win.ws_row >= 30000)
-			win.ws_row = 24;
-		*height = (int) win.ws_row;
-	}
-
-	if (width) {
-		if (!win.ws_col) {
-			char *s = getenv("COLUMNS");
-			if (s) win.ws_col = atoi(s);
-		}
-		if (win.ws_col <= 1 || win.ws_col >= 30000)
-			win.ws_col = 80;
-		*width = (int) win.ws_col;
-	}
-
-	return ret;
-}
-#endif

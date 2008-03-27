@@ -14,6 +14,12 @@ void bb_perror_msg(const char *s, ...)
 	va_list p;
 
 	va_start(p, s);
-	bb_vperror_msg(s, p);
+	/* Guard against "<error message>: Success" */
+	bb_verror_msg(s, p, errno ? strerror(errno) : NULL);
 	va_end(p);
+}
+
+void bb_simple_perror_msg(const char *s)
+{
+	bb_perror_msg("%s", s);
 }

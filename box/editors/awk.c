@@ -614,7 +614,7 @@ static char nextchar(char **s)
 	return c;
 }
 
-static int ATTRIBUTE_ALWAYS_INLINE isalnum_(int c)
+static int ALWAYS_INLINE isalnum_(int c)
 {
 	return (isalnum(c) || c == '_');
 }
@@ -2729,7 +2729,7 @@ int awk_main(int argc, char **argv)
 		free(s);
 	}
 	opt_complementary = "v::";
-	opt = getopt32(argc, argv, "F:v:f:W:", &opt_F, &opt_v, &programname, &opt_W);
+	opt = getopt32(argv, "F:v:f:W:", &opt_F, &opt_v, &programname, &opt_W);
 	argv += optind;
 	argc -= optind;
 	if (opt & 0x1)

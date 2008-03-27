@@ -29,11 +29,11 @@ static const struct suffix_mult sfx[] = {
 	{ "m", 60 },
 	{ "h", 60*60 },
 	{ "d", 24*60*60 },
-	{ NULL, 0 }
+	{ }
 };
 #endif
 
-int sleep_main(int argc, char **argv);
+int sleep_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int sleep_main(int argc, char **argv)
 {
 	unsigned duration;

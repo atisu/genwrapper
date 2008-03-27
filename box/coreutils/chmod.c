@@ -63,11 +63,11 @@ static int fileAction(const char *fileName, struct stat *statbuf, void* param, i
 	}
  err:
 	if (!OPT_QUIET)
-		bb_perror_msg("%s", fileName);
+		bb_simple_perror_msg(fileName);
 	return FALSE;
 }
 
-int chmod_main(int argc, char **argv);
+int chmod_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int chmod_main(int argc, char **argv)
 {
 	int retval = EXIT_SUCCESS;
@@ -93,7 +93,7 @@ int chmod_main(int argc, char **argv)
 
 	/* Parse options */
 	opt_complementary = "-2";
-	getopt32(argc, argv, ("-"OPT_STR) + 1); /* Reuse string */
+	getopt32(argv, ("-"OPT_STR) + 1); /* Reuse string */
 	argv += optind;
 
 	/* Restore option-like mode if needed */

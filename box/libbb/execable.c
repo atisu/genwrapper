@@ -29,16 +29,9 @@ char *find_execable(const char *filename)
 
 	p = path = xstrdup(getenv("PATH"));
 	while (p) {
-		n = strchr(p, ':');
+		n = strchr(p, PATH_SEPARATOR);
 		if (n)
 			*n++ = '\0';
-#ifdef __MINGW32__
-		else {
-			n = strchr(p, ';');
-			if (n)
-				*n++ = '\0';
-		}
-#endif
 		if (*p != '\0') { /* it's not a PATH="foo::bar" situation */
 			p = concat_path_file(p, filename);
 			if (execable_file(p)) {
@@ -72,7 +65,7 @@ int exists_execable(const char *filename)
  */
 int bb_execvp(const char *file, char *const argv[])
 {
-	return execvp(find_applet_by_name(file) ? CONFIG_BUSYBOX_EXEC_PATH : file,
+	return execvp(find_applet_by_name(file) >= 0 ? bb_busybox_exec_path : file,
 					argv);
 }
 #endif

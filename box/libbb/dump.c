@@ -17,7 +17,6 @@
 enum _vflag bb_dump_vflag = FIRST;
 FS *bb_dump_fshead;				/* head of format strings */
 static FU *endfu;
-#define _argv static_argv
 static char **_argv;
 static off_t savaddress;	/* saved address/offset in stream */
 static off_t eaddress;	/* end address */
@@ -27,12 +26,12 @@ static int exitval;			/* final exit value */
 int bb_dump_blocksize;			/* data block size */
 int bb_dump_length = -1;		/* max bytes to read */
 
-static const char index_str[] = ".#-+ 0123456789";
+static const char index_str[] ALIGN1 = ".#-+ 0123456789";
 
-static const char size_conv_str[] =
+static const char size_conv_str[] ALIGN1 =
 "\x1\x4\x4\x4\x4\x4\x4\x8\x8\x8\x8\010cdiouxXeEfgG";
 
-static const char lcc[] = "diouxX";
+static const char lcc[] ALIGN1 = "diouxX";
 
 int bb_dump_size(FS * fs)
 {
@@ -60,7 +59,8 @@ int bb_dump_size(FS * fs)
 				prec = atoi(fmt);
 				while (isdigit(*++fmt));
 			}
-			if (!(p = strchr(size_conv_str + 12, *fmt))) {
+			p = strchr(size_conv_str + 12, *fmt);
+			if (!p) {
 				if (*fmt == 's') {
 					bcnt += prec;
 				} else if (*fmt == '_') {
@@ -100,7 +100,7 @@ static void rewrite(FS * fs)
 			if (!fu->nextpr)
 				fu->nextpr = pr;
 			/* ignore nextpr -- its unused inside the loop and is
-			 * uninitialized 1st time thru.
+			 * uninitialized 1st time through.
 			 */
 
 			/* bb_dump_skip preceding text and up to the next % sign */
@@ -163,7 +163,8 @@ static void rewrite(FS * fs)
 			DO_INT_CONV:
 				{
 					const char *e;
-					if (!(e = strchr(lcc, *p1))) {
+					e = strchr(lcc, *p1);
+					if (!e) {
 						goto DO_BAD_CONV_CHAR;
 					}
 					pr->flags = F_INT;
@@ -298,7 +299,7 @@ static void do_skip(const char *fname, int statok)
 
 	if (statok) {
 		if (fstat(STDIN_FILENO, &sbuf)) {
-			bb_perror_msg_and_die("%s", fname);
+			bb_simple_perror_msg_and_die(fname);
 		}
 		if ((!(S_ISCHR(sbuf.st_mode) ||
 			   S_ISBLK(sbuf.st_mode) ||
@@ -310,7 +311,7 @@ static void do_skip(const char *fname, int statok)
 		}
 	}
 	if (fseek(stdin, bb_dump_skip, SEEK_SET)) {
-		bb_perror_msg_and_die("%s", fname);
+		bb_simple_perror_msg_and_die(fname);
 	}
 	savaddress = address += bb_dump_skip;
 	bb_dump_skip = 0;
@@ -318,7 +319,8 @@ static void do_skip(const char *fname, int statok)
 
 static int next(char **argv)
 {
-	static int done;
+	static smallint done;
+
 	int statok;
 
 	if (argv) {
@@ -328,15 +330,16 @@ static int next(char **argv)
 	for (;;) {
 		if (*_argv) {
 			if (!(freopen(*_argv, "r", stdin))) {
-				bb_perror_msg("%s", *_argv);
+				bb_simple_perror_msg(*_argv);
 				exitval = 1;
 				++_argv;
 				continue;
 			}
-			statok = done = 1;
+			done = statok = 1;
 		} else {
-			if (done++)
+			if (done)
 				return 0;
+			done = 1;
 			statok = 0;
 		}
 		if (bb_dump_skip)
@@ -351,8 +354,9 @@ static int next(char **argv)
 
 static unsigned char *get(void)
 {
-	static int ateof = 1;
-	static unsigned char *curp=NULL, *savp; /*DBU:[dave@cray.com]initialize curp */
+	static smallint ateof = 1;
+	static unsigned char *curp = NULL, *savp; /*DBU:[dave@cray.com]initialize curp */
+
 	int n;
 	int need, nread;
 	unsigned char *tmpp;
@@ -391,7 +395,7 @@ static unsigned char *get(void)
 				  bb_dump_length == -1 ? need : MIN(bb_dump_length, need), stdin);
 		if (!n) {
 			if (ferror(stdin)) {
-				bb_perror_msg("%s", _argv[-1]);
+				bb_simple_perror_msg(_argv[-1]);
 			}
 			ateof = 1;
 			continue;
@@ -400,7 +404,8 @@ static unsigned char *get(void)
 		if (bb_dump_length != -1) {
 			bb_dump_length -= n;
 		}
-		if (!(need -= n)) {
+		need -= n;
+		if (!need) {
 			if (bb_dump_vflag == ALL || bb_dump_vflag == FIRST
 				|| memcmp(curp, savp, bb_dump_blocksize)) {
 				if (bb_dump_vflag == DUP || bb_dump_vflag == FIRST) {
@@ -437,7 +442,7 @@ static void bpad(PR * pr)
 	while ((*p2++ = *p1++) != 0);
 }
 
-static const char conv_str[] =
+static const char conv_str[] ALIGN1 =
 	"\0\\0\0"
 	"\007\\a\0"				/* \a */
 	"\b\\b\0"
@@ -446,7 +451,7 @@ static const char conv_str[] =
 	"\r\\r\0"
 	"\t\\t\0"
 	"\v\\v\0"
-	"\0";
+	;
 
 
 static void conv_c(PR * pr, unsigned char * p)
@@ -476,7 +481,7 @@ static void conv_c(PR * pr, unsigned char * p)
 
 static void conv_u(PR * pr, unsigned char * p)
 {
-	static const char list[] =
+	static const char list[] ALIGN1 =
 		"nul\0soh\0stx\0etx\0eot\0enq\0ack\0bel\0"
 		"bs\0_ht\0_lf\0_vt\0_ff\0_cr\0_so\0_si\0_"
 		"dle\0dcl\0dc2\0dc3\0dc4\0nak\0syn\0etb\0"

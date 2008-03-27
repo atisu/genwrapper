@@ -30,20 +30,17 @@
  */
 
 #include <getopt.h> /* struct option */
-extern char **environ;
-
 #include "libbb.h"
 
 #if ENABLE_FEATURE_ENV_LONG_OPTIONS
-static const struct option env_long_options[] = {
-	{ "ignore-environment", 0, NULL, 'i' },
-	{ "unset", 1, NULL, 'u' },
-	{ 0, 0, 0, 0 }
-};
+static const char env_longopts[] ALIGN1 =
+	"ignore-environment\0" No_argument       "i"
+	"unset\0"              Required_argument "u"
+	;
 #endif
 
-int env_main(int argc, char** argv);
-int env_main(int argc, char** argv)
+int env_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
+int env_main(int argc, char **argv)
 {
 	/* cleanenv was static - why? */
 	char *cleanenv[1];
@@ -53,9 +50,9 @@ int env_main(int argc, char** argv)
 
 	opt_complementary = "u::";
 #if ENABLE_FEATURE_ENV_LONG_OPTIONS
-	applet_long_options = env_long_options;
+	applet_long_options = env_longopts;
 #endif
-	opt = getopt32(argc, argv, "+iu:", &unset_env);
+	opt = getopt32(argv, "+iu:", &unset_env);
 	argv += optind;
 	if (*argv && LONE_DASH(argv[0])) {
 		opt |= 1;
@@ -64,7 +61,7 @@ int env_main(int argc, char** argv)
 	if (opt & 1) {
 		cleanenv[0] = NULL;
 		environ = cleanenv;
-	} else if (opt & 2) {
+	} else {
 		while (unset_env) {
 			unsetenv(unset_env->data);
 			unset_env = unset_env->link;
@@ -82,7 +79,7 @@ int env_main(int argc, char** argv)
 		BB_EXECVP(*argv, argv);
 		/* SUSv3-mandated exit codes. */
 		xfunc_error_retval = (errno == ENOENT) ? 127 : 126;
-		bb_perror_msg_and_die("%s", *argv);
+		bb_simple_perror_msg_and_die(*argv);
 	}
 
 	for (ep = environ; *ep; ep++) {

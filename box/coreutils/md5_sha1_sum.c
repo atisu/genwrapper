@@ -77,7 +77,7 @@ static uint8_t *hash_file(const char *filename, hash_algo_t hash_algo)
 	return hash_value;
 }
 
-int md5_sha1_sum_main(int argc, char **argv);
+int md5_sha1_sum_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int md5_sha1_sum_main(int argc, char **argv)
 {
 	int return_value = EXIT_SUCCESS;
@@ -88,7 +88,7 @@ int md5_sha1_sum_main(int argc, char **argv)
 		: HASH_SHA1;
 
 	if (ENABLE_FEATURE_MD5_SHA1_SUM_CHECK)
-		flags = getopt32(argc, argv, "scw");
+		flags = getopt32(argv, "scw");
 	else optind = 1;
 
 	if (ENABLE_FEATURE_MD5_SHA1_SUM_CHECK && !(flags & FLAG_CHECK)) {

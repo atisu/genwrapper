@@ -13,7 +13,7 @@
 
 #include "libbb.h"
 
-static const char head_opts[] =
+static const char head_opts[] ALIGN1 =
 	"n:"
 #if ENABLE_FEATURE_FANCY_HEAD
 	"c:qv"
@@ -25,13 +25,13 @@ static const struct suffix_mult head_suffixes[] = {
 	{ "b", 512 },
 	{ "k", 1024 },
 	{ "m", 1024*1024 },
-	{ NULL, 0 }
+	{ }
 };
 #endif
 
-static const char header_fmt_str[] = "\n==> %s <==\n";
+static const char header_fmt_str[] ALIGN1 = "\n==> %s <==\n";
 
-int head_main(int argc, char **argv);
+int head_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int head_main(int argc, char **argv)
 {
 	unsigned long count = 10;
@@ -128,7 +128,7 @@ int head_main(int argc, char **argv)
 				putchar(c);
 			}
 			if (fclose_if_not_stdin(fp)) {
-				bb_perror_msg("%s", *argv);	/* Avoid multibyte problems. */
+				bb_simple_perror_msg(*argv);	/* Avoid multibyte problems. */
 				retval = EXIT_FAILURE;
 			}
 			die_if_ferror_stdout();

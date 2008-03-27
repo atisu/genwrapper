@@ -1,7 +1,7 @@
 /* vi: set sw=4 ts=4: */
 /*
  *  busybox patch applet to handle the unified diff format.
- *  Copyright (C) 2003 Glenn McGrath <bug1@iinet.net.au>
+ *  Copyright (C) 2003 Glenn McGrath
  *
  *  Licensed under the GPL v2 or later, see the file LICENSE in this tarball.
  *
@@ -55,17 +55,12 @@ static char *extract_filename(char *line, int patch_level)
 	int i;
 
 	/* Terminate string at end of source filename */
-	temp = strchr(filename_start_ptr, '\t');
-	if (temp) *temp = 0;
+	temp = strchrnul(filename_start_ptr, '\t');
+	*temp = '\0';
 
-	if (patch_level == -1) {
-		temp = strrchr(filename_start_ptr, '/');
-		if (temp)
-			filename_start_ptr = temp + 1;
-		return xstrdup(filename_start_ptr);
-	}
-
-	/* skip over (patch_level) number of leading directories */
+	/* Skip over (patch_level) number of leading directories */
+	if (patch_level == -1)
+		patch_level = INT_MAX;
 	for (i = 0; i < patch_level; i++) {
 		temp = strchr(filename_start_ptr, '/');
 		if (!temp)
@@ -82,7 +77,7 @@ static int file_doesnt_exist(const char *filename)
 	return stat(filename, &statbuf);
 }
 
-int patch_main(int argc, char **argv);
+int patch_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int patch_main(int argc, char **argv)
 {
 	int patch_level = -1;
@@ -92,7 +87,7 @@ int patch_main(int argc, char **argv)
 
 	{
 		char *p, *i;
-		ret = getopt32(argc, argv, "p:i:", &p, &i);
+		ret = getopt32(argv, "p:i:", &p, &i);
 		if (ret & 1)
 			patch_level = xatol_range(p, -1, USHRT_MAX);
 		if (ret & 2) {
@@ -159,10 +154,7 @@ int patch_main(int argc, char **argv)
 			backup_filename = xmalloc(strlen(new_filename) + 6);
 			strcpy(backup_filename, new_filename);
 			strcat(backup_filename, ".orig");
-			if (rename(new_filename, backup_filename) == -1) {
-				bb_perror_msg_and_die("cannot create file %s",
-						backup_filename);
-			}
+			xrename(new_filename, backup_filename);
 			dst_stream = xfopen(new_filename, "w");
 		}
 

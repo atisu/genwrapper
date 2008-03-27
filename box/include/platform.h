@@ -53,23 +53,30 @@
 # define ATTRIBUTE_PACKED __attribute__ ((__packed__))
 # define ATTRIBUTE_ALIGNED(m) __attribute__ ((__aligned__(m)))
 # if __GNUC_PREREQ (3,0)
-#  define ATTRIBUTE_ALWAYS_INLINE __attribute__ ((always_inline)) inline
+#  define ALWAYS_INLINE __attribute__ ((always_inline)) inline
+/* I've seen a toolchain where I needed __noinline__ instead of noinline */
+#  define NOINLINE      __attribute__((__noinline__))
 #  if !ENABLE_WERROR
 #   define ATTRIBUTE_DEPRECATED __attribute__ ((__deprecated__))
+#   define ATTRIBUTE_UNUSED_RESULT __attribute__ ((warn_unused_result))
 #  else
 #   define ATTRIBUTE_DEPRECATED /* n/a */
+#   define ATTRIBUTE_UNUSED_RESULT /* n/a */
 #  endif
 # else
-#  define ATTRIBUTE_ALWAYS_INLINE inline
+#  define ALWAYS_INLINE inline /* n/a */
+#  define NOINLINE /* n/a */
 #  define ATTRIBUTE_DEPRECATED /* n/a */
+#  define ATTRIBUTE_UNUSED_RESULT /* n/a */
 # endif
 
 /* -fwhole-program makes all symbols local. The attribute externally_visible
    forces a symbol global.  */
 # if __GNUC_PREREQ (4,1)
-#  define ATTRIBUTE_EXTERNALLY_VISIBLE __attribute__ ((__externally_visible__))
+#  define EXTERNALLY_VISIBLE __attribute__(( visibility("default") ));
+//__attribute__ ((__externally_visible__))
 # else
-#  define ATTRIBUTE_EXTERNALLY_VISIBLE
+#  define EXTERNALLY_VISIBLE
 # endif /* GNUC >= 4.1 */
 
 /* We use __extension__ in some places to suppress -pedantic warnings
@@ -92,11 +99,9 @@
 /* ---- Endian Detection ------------------------------------ */
 
 #if defined __MINGW32__
-# define BB_BIG_ENDIAN 0
-# define BB_LITTLE_ENDIAN 1
 # define __BIG_ENDIAN__ 0
-#else
-#if (defined __digital__ && defined __unix__)
+# define __BYTE_ORDER 1234
+#elif (defined __digital__ && defined __unix__)
 # include <sex.h>
 # define __BIG_ENDIAN__ (BYTE_ORDER == BIG_ENDIAN)
 # define __BYTE_ORDER BYTE_ORDER
@@ -115,6 +120,9 @@
 # define BB_BIG_ENDIAN 0
 # define BB_LITTLE_ENDIAN 1
 #endif
+
+#if defined __APPLE__ || defined __MINGW32__
+#include "byteswap.h"
 #endif
 
 #if BB_BIG_ENDIAN
@@ -149,20 +157,21 @@ typedef int socklen_t;
 #endif
 
 /* ---- Compiler dependent settings ------------------------- */
-#if (defined __digital__ && defined __unix__)
+#if (defined __digital__ && defined __unix__) || defined __MINGW32__ || defined __APPLE__
 # undef HAVE_MNTENT_H
+# undef HAVE_SYS_STATFS_H
 #else
 # define HAVE_MNTENT_H 1
+# define HAVE_SYS_STATFS_H 1
 #endif /* ___digital__ && __unix__ */
 
 /* linux/loop.h relies on __u64. Make sure we have that as a proper type
  * until userspace is widely fixed.  */
-#ifndef __GNUC__
-#if defined __INTEL_COMPILER
+#if (defined __INTEL_COMPILER && !defined __GNUC__) || \
+	(defined __GNUC__ && defined __STRICT_ANSI__)
 __extension__ typedef __signed__ long long __s64;
 __extension__ typedef unsigned long long __u64;
-#endif /* __INTEL_COMPILER */
-#endif /* ifndef __GNUC__ */
+#endif
 
 /*----- Kernel versioning ------------------------------------*/
 #define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
@@ -176,7 +185,7 @@ __extension__ typedef unsigned long long __u64;
 # error "Sorry, this libc version is not supported :("
 #endif
 
-// Don't perpetuate e2fsck crap into the headers.  Clean up e2fsck instead.
+/* Don't perpetuate e2fsck crap into the headers.  Clean up e2fsck instead. */
 
 #if defined __GLIBC__ || defined __UCLIBC__ \
 	|| defined __dietlibc__ || defined _NEWLIB_VERSION
@@ -184,7 +193,7 @@ __extension__ typedef unsigned long long __u64;
 #define HAVE_FEATURES_H
 #include <stdint.h>
 #define HAVE_STDINT_H
-#else
+#elif !defined __APPLE__
 /* Largest integral types.  */
 #if __BIG_ENDIAN__
 typedef long                intmax_t;
@@ -217,15 +226,25 @@ typedef unsigned smalluint;
 #include <stdbool.h>
 #endif
 
+/* Try to defeat gcc's alignment of "char message[]"-like data */
+#if 1 /* if needed: !defined(arch1) && !defined(arch2) */
+#define ALIGN1 __attribute__((aligned(1)))
+#define ALIGN2 __attribute__((aligned(2)))
+#else
+/* Arches which MUST have 2 or 4 byte alignment for everything are here */
+#define ALIGN1
+#define ALIGN2
+#endif
+
 
 /* uclibc does not implement daemon() for no-mmu systems.
  * For 0.9.29 and svn, __ARCH_USE_MMU__ indicates no-mmu reliably.
  * For earlier versions there is no reliable way to check if we are building
- * for a mmu-less system; the user should pass EXTRA_CFLAGS="-DBB_NOMMU"
- * on his own.
+ * for a mmu-less system.
  */
-#if defined __UCLIBC__ && __UCLIBC_MAJOR__ >= 0 && __UCLIBC_MINOR__ >= 9 && \
-    __UCLIBC_SUBLEVEL__ > 28 && !defined __ARCH_USE_MMU__
+#if ENABLE_NOMMU || \
+    (defined __UCLIBC__ && __UCLIBC_MAJOR__ >= 0 && __UCLIBC_MINOR__ >= 9 && \
+    __UCLIBC_SUBLEVEL__ > 28 && !defined __ARCH_USE_MMU__)
 #define BB_MMU 0
 #define BB_NOMMU 1
 #define USE_FOR_NOMMU(...) __VA_ARGS__
@@ -248,7 +267,7 @@ typedef unsigned smalluint;
 #endif
 
 #if defined(__dietlibc__) || defined(__MINGW32__) || defined(__APPLE__)
-static ATTRIBUTE_ALWAYS_INLINE char* strchrnul(const char *s, char c)
+static ALWAYS_INLINE char* strchrnul(const char *s, char c)
 {
 	while (*s && *s != c) ++s;
 	return (char*)s;
@@ -296,7 +315,7 @@ static ATTRIBUTE_ALWAYS_INLINE char* strchrnul(const char *s, char c)
 
 #if defined(__linux__)
 #include <sys/mount.h>
-// Make sure we have all the new mount flags we actually try to use.
+/* Make sure we have all the new mount flags we actually try to use. */
 #ifndef MS_BIND
 #define MS_BIND        (1<<12)
 #endif
@@ -310,7 +329,7 @@ static ATTRIBUTE_ALWAYS_INLINE char* strchrnul(const char *s, char c)
 #define MS_SILENT      (1<<15)
 #endif
 
-// The shared subtree stuff, which went in around 2.6.15
+/* The shared subtree stuff, which went in around 2.6.15. */
 #ifndef MS_UNBINDABLE
 #define MS_UNBINDABLE  (1<<17)
 #endif

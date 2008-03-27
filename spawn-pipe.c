@@ -2,7 +2,7 @@
 #include "spawn-pipe.h"
 
 extern char **environ;
-extern char *argv0_basename;
+extern char *bb_busybox_exec_path;
 
 #ifdef __MINGW32__
 #include "exec_cmd.h"
@@ -200,7 +200,7 @@ int spawnvppe_pipe(const char *cmd, const char **argv, const char **env,
 		pid = spawnve(_P_NOWAIT, prog, qargv, env);
 	} else {
 		if (!strcmp(interpr, "sh")) {
-			qargv[0] = argv0_basename;
+			qargv[0] = bb_busybox_exec_path;
 			qargv[1] = "sh";
 			argv[0] = prog;
 			memcpy(&qargv[2], argv, (argc+1)*sizeof(char*));

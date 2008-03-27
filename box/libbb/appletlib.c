@@ -15,17 +15,6 @@
 #include <assert.h>
 #include "busybox.h"
 
-/* Apparently uclibc defines __GLIBC__ (compat trick?). Oh well. */
-#if ENABLE_STATIC && defined(__GLIBC__) && !defined(__UCLIBC__)
-#warning Static linking against glibc produces buggy executables
-#warning (glibc does not cope well with ld --gc-sections).
-#warning See sources.redhat.com/bugzilla/show_bug.cgi?id=3400
-#warning Note that glibc is unsuitable for static linking anyway.
-#warning If you still want to do it, remove -Wl,--gc-sections
-#warning from top-level Makefile and remove this warning.
-#error Aborting compilation.
-#endif
-
 
 /* Declare <applet>_main() */
 #define PROTOTYPES
@@ -34,7 +23,7 @@
 
 #if ENABLE_SHOW_USAGE && !ENABLE_FEATURE_COMPRESS_USAGE
 /* Define usage_messages[] */
-static const char usage_messages[] = ""
+static const char usage_messages[] ALIGN1 = ""
 #define MAKE_USAGE
 #include "usage.h"
 #include "applets.h"
@@ -44,13 +33,125 @@ static const char usage_messages[] = ""
 #define usage_messages 0
 #endif /* SHOW_USAGE */
 
-/* Define struct bb_applet applets[] */
-#include "applets.h"
-/* The -1 arises because of the {0,NULL,0,-1} entry. */
-const unsigned short NUM_APPLETS = sizeof(applets) / sizeof(applets[0]) - 1;
 
-const struct bb_applet *current_applet;
-const char *applet_name ATTRIBUTE_EXTERNALLY_VISIBLE;
+/* Include generated applet names, pointers to <apllet>_main, etc */
+#include "applet_tables.h"
+
+
+#if ENABLE_FEATURE_COMPRESS_USAGE
+
+#include "usage_compressed.h"
+#include "unarchive.h"
+
+static const char *unpack_usage_messages(void)
+{
+	char *outbuf = NULL;
+	bunzip_data *bd;
+	int i;
+
+	i = start_bunzip(&bd,
+			/* src_fd: */ -1,
+			/* inbuf:  */ packed_usage,
+			/* len:    */ sizeof(packed_usage));
+	/* read_bunzip can longjmp to start_bunzip, and ultimately
+	 * end up here with i != 0 on read data errors! Not trivial */
+	if (!i) {
+		/* Cannot use xmalloc: will leak bd in NOFORK case! */
+		outbuf = malloc_or_warn(SIZEOF_usage_messages);
+		if (outbuf)
+			read_bunzip(bd, outbuf, SIZEOF_usage_messages);
+	}
+	dealloc_bunzip(bd);
+	return outbuf;
+}
+#define dealloc_usage_messages(s) free(s)
+
+#else
+
+#define unpack_usage_messages() usage_messages
+#define dealloc_usage_messages(s) ((void)(s))
+
+#endif /* FEATURE_COMPRESS_USAGE */
+
+
+void bb_show_usage(void)
+{
+	if (ENABLE_SHOW_USAGE) {
+		const char *format_string;
+		const char *p;
+		const char *usage_string = p = unpack_usage_messages();
+		int ap = find_applet_by_name(applet_name);
+
+		if (ap < 0) /* never happens, paranoia */
+			xfunc_die();
+
+		while (ap) {
+			while (*p++) continue;
+			ap--;
+		}
+
+		fprintf(stderr, "%s multi-call binary\n", bb_banner);
+		format_string = "\nUsage: %s %s\n\n";
+		if (*p == '\b')
+			format_string = "\nNo help available.\n\n";
+		fprintf(stderr, format_string, applet_name, p);
+		dealloc_usage_messages((char*)usage_string);
+	}
+	xfunc_die();
+}
+
+
+/* NB: any char pointer will work as well, not necessarily applet_names */
+static int applet_name_compare(const void *name, const void *v)
+{
+	int i = (const char *)v - applet_names;
+	return strcmp(name, APPLET_NAME(i));
+}
+int find_applet_by_name(const char *name)
+{
+	/* Do a binary search to find the applet entry given the name. */
+	const char *p;
+	p = bsearch(name, applet_names, ARRAY_SIZE(applet_main), 1, applet_name_compare);
+	if (!p)
+		return -1;
+	return p - applet_names;
+}
+
+
+#ifdef __GLIBC__
+/* Make it reside in R/W memory: */
+int *const bb_errno __attribute__ ((section (".data")));
+#endif
+
+void lbb_prepare(const char *applet, char **argv)
+{
+#ifdef __GLIBC__
+	(*(int **)&bb_errno) = __errno_location();
+#endif
+	applet_name = applet;
+
+	/* Set locale for everybody except 'init' */
+	if (ENABLE_LOCALE_SUPPORT && getpid() != 1)
+		setlocale(LC_ALL, "");
+
+#if ENABLE_FEATURE_INDIVIDUAL
+	/* Redundant for busybox (run_applet_and_exit covers that case)
+	 * but needed for "individual applet" mode */
+	if (argv[1] && strcmp(argv[1], "--help") == 0)
+		bb_show_usage();
+#endif
+}
+
+/* The code below can well be in applets/applets.c, as it is used only
+ * for busybox binary, not "individual" binaries.
+ * However, keeping it here and linking it into libbusybox.so
+ * (together with remaining tiny applets/applets.o)
+ * makes it possible to avoid --whole-archive at link time.
+ * This makes (shared busybox) + libbusybox smaller.
+ * (--gc-sections would be even better....)
+ */
+
+const char *applet_name;
 #if !BB_MMU
 bool re_execed;
 #endif
@@ -61,7 +162,7 @@ USE_FEATURE_SUID(static uid_t ruid;)  /* real uid */
 
 /* applets[] is const, so we have to define this "override" structure */
 static struct BB_suid_config {
-	const struct bb_applet *m_applet;
+	int m_applet;
 	uid_t m_uid;
 	gid_t m_gid;
 	mode_t m_mode;
@@ -109,12 +210,12 @@ static char *get_trimmed_slice(char *s, char *e)
 }
 
 /* Don't depend on the tools to combine strings. */
-static const char config_file[] = "/etc/busybox.conf";
+static const char config_file[] ALIGN1 = "/etc/busybox.conf";
 
 /* We don't supply a value for the nul, so an index adjustment is
  * necessary below.  Also, we use unsigned short here to save some
  * space even though these are really mode_t values. */
-static const unsigned short mode_mask[] = {
+static const unsigned short mode_mask[] ALIGN2 = {
 	/*  SST     sst                 xxx         --- */
 	S_ISUID,    S_ISUID|S_IXUSR,    S_IXUSR,    0,	/* user */
 	S_ISGID,    S_ISGID|S_IXGRP,    S_IXGRP,    0,	/* group */
@@ -127,7 +228,7 @@ static void parse_config_file(void)
 {
 	struct BB_suid_config *sct_head;
 	struct BB_suid_config *sct;
-	const struct bb_applet *applet;
+	int applet_no;
 	FILE *f;
 	const char *errmsg;
 	char *s;
@@ -140,11 +241,9 @@ static void parse_config_file(void)
 
 	assert(!suid_config); /* Should be set to NULL by bss init. */
 
-#if ENABLE_FEATURE_SUID
 	ruid = getuid();
 	if (ruid == 0) /* run by root - don't need to even read config file */
 		return;
-#endif
 
 	if ((stat(config_file, &st) != 0)       /* No config file? */
 	 || !S_ISREG(st.st_mode)                /* Not a regular file? */
@@ -240,14 +339,14 @@ static void parse_config_file(void)
 			 * applet is currently built in and ignore it otherwise.
 			 * Note: this can hide config file bugs which only pop
 			 * up when the busybox configuration is changed. */
-			applet = find_applet_by_name(s);
-			if (applet) {
+			applet_no = find_applet_by_name(s);
+			if (applet_no >= 0) {
 				/* Note: We currently don't check for duplicates!
 				 * The last config line for each applet will be the
 				 * one used since we insert at the head of the list.
 				 * I suppose this could be considered a feature. */
 				sct = xmalloc(sizeof(struct BB_suid_config));
-				sct->m_applet = applet;
+				sct->m_applet = applet_no;
 				sct->m_mode = 0;
 				sct->m_next = sct_head;
 				sct_head = sct;
@@ -258,7 +357,7 @@ static void parse_config_file(void)
 
 				for (i = 0; i < 3; i++) {
 					/* There are 4 chars + 1 nul for each of user/group/other. */
-					static const char mode_chars[] = "Ssx-\0" "Ssx-\0" "Ttx-";
+					static const char mode_chars[] ALIGN1 = "Ssx-\0" "Ssx-\0" "Ttx-";
 
 					const char *q;
 					q = strchrnul(mode_chars + 5*i, *e++);
@@ -342,7 +441,7 @@ static inline void parse_config_file(void)
 
 
 #if ENABLE_FEATURE_SUID
-static void check_suid(const struct bb_applet *applet)
+static void check_suid(int applet_no)
 {
 	gid_t rgid;  /* real gid */
 
@@ -357,13 +456,10 @@ static void check_suid(const struct bb_applet *applet)
 		mode_t m;
 
 		for (sct = suid_config; sct; sct = sct->m_next) {
-			if (sct->m_applet == applet)
+			if (sct->m_applet == applet_no)
 				goto found;
 		}
-		/* default: drop all privileges */
-		xsetgid(rgid);
-		xsetuid(ruid);
-		return;
+		goto check_need_suid;
  found:
 		m = sct->m_mode;
 		if (sct->m_uid == ruid)
@@ -406,14 +502,14 @@ static void check_suid(const struct bb_applet *applet)
 		}
 	}
 #endif
+ check_need_suid:
 #endif
-
-	if (applet->need_suid == _BB_SUID_ALWAYS) {
+	if (APPLET_SUID(applet_no) == _BB_SUID_ALWAYS) {
 		/* Real uid is not 0. If euid isn't 0 too, suid bit
 		 * is most probably not set on our executable */
 		if (geteuid())
-			bb_error_msg_and_die("applet requires root privileges!");
-	} else if (applet->need_suid == _BB_SUID_NEVER) {
+			bb_error_msg_and_die("must be suid to work properly");
+	} else if (APPLET_SUID(applet_no) == _BB_SUID_NEVER) {
 		xsetgid(rgid);  /* drop all privileges */
 		xsetuid(ruid);
 	}
@@ -423,82 +519,6 @@ static void check_suid(const struct bb_applet *applet)
 #endif /* FEATURE_SUID */
 
 
-#if ENABLE_FEATURE_COMPRESS_USAGE
-
-#include "usage_compressed.h"
-#include "unarchive.h"
-
-static const char *unpack_usage_messages(void)
-{
-	char *outbuf = NULL;
-	bunzip_data *bd;
-	int i;
-
-	i = start_bunzip(&bd,
-			/* src_fd: */ -1,
-			/* inbuf:  */ packed_usage,
-			/* len:    */ sizeof(packed_usage));
-	/* read_bunzip can longjmp to start_bunzip, and ultimately
-	 * end up here with i != 0 on read data errors! Not trivial */
-	if (!i) {
-		/* Cannot use xmalloc: will leak bd in NOFORK case! */
-		outbuf = malloc_or_warn(SIZEOF_usage_messages);
-		if (outbuf)
-			read_bunzip(bd, outbuf, SIZEOF_usage_messages);
-	}
-	dealloc_bunzip(bd);
-	return outbuf;
-}
-#define dealloc_usage_messages(s) free(s)
-
-#else
-
-#define unpack_usage_messages() usage_messages
-#define dealloc_usage_messages(s) ((void)(s))
-
-#endif /* FEATURE_COMPRESS_USAGE */
-
-
-void bb_show_usage(void)
-{
-	if (ENABLE_SHOW_USAGE) {
-		const char *format_string;
-		const char *p;
-		const char *usage_string = p = unpack_usage_messages();
-		int i;
-
-		i = current_applet - applets;
-		while (i) {
-			while (*p++) continue;
-			i--;
-		}
-
-		format_string = "%s\n\nUsage: %s %s\n\n";
-		if (*p == '\b')
-			format_string = "%s\n\nNo help available.\n\n";
-		fprintf(stderr, format_string, bb_msg_full_version,
-					applet_name, p);
-		dealloc_usage_messages((char*)usage_string);
-	}
-	xfunc_die();
-}
-
-
-static int applet_name_compare(const void *name, const void *vapplet)
-{
-	const struct bb_applet *applet = vapplet;
-
-	return strcmp(name, applet->name);
-}
-
-const struct bb_applet *find_applet_by_name(const char *name)
-{
-	/* Do a binary search to find the applet entry given the name. */
-	return bsearch(name, applets, NUM_APPLETS, sizeof(applets[0]),
-				applet_name_compare);
-}
-
-
 #if ENABLE_FEATURE_INSTALLER
 /* create (sym)links for each applet */
 static void install_links(const char *busybox, int use_symbolic_links)
@@ -506,8 +526,8 @@ static void install_links(const char *busybox, int use_symbolic_links)
 	/* directory table
 	 * this should be consistent w/ the enum,
 	 * busybox.h::bb_install_loc_t, or else... */
-	static const char usr_bin [] = "/usr/bin";
-	static const char usr_sbin[] = "/usr/sbin";
+	static const char usr_bin [] ALIGN1 = "/usr/bin";
+	static const char usr_sbin[] ALIGN1 = "/usr/sbin";
 	static const char *const install_dir[] = {
 		&usr_bin [8], /* "", equivalent to "/" for concat_path_file() */
 		&usr_bin [4], /* "/bin" */
@@ -516,21 +536,24 @@ static void install_links(const char *busybox, int use_symbolic_links)
 		usr_sbin
 	};
 
-	int (*lf)(const char *, const char *) = link;
+	int (*lf)(const char *, const char *);
 	char *fpc;
 	int i;
 	int rc;
 
+	lf = link;
 	if (use_symbolic_links)
 		lf = symlink;
 
-	for (i = 0; applets[i].name != NULL; i++) {
+	for (i = 0; i < ARRAY_SIZE(applet_main); i++) {
 		fpc = concat_path_file(
-				install_dir[applets[i].install_loc],
-				applets[i].name);
+				install_dir[APPLET_INSTALL_LOC(i)],
+				APPLET_NAME(i));
+		// debug: bb_error_msg("%slinking %s to busybox",
+		//		use_symbolic_links ? "sym" : "", fpc);
 		rc = lf(busybox, fpc);
 		if (rc != 0 && errno != EEXIST) {
-			bb_perror_msg("%s", fpc);
+			bb_simple_perror_msg(fpc);
 		}
 		free(fpc);
 	}
@@ -539,66 +562,57 @@ static void install_links(const char *busybox, int use_symbolic_links)
 #define install_links(x,y) ((void)0)
 #endif /* FEATURE_INSTALLER */
 
-
 /* If we were called as "busybox..." */
 static int busybox_main(char **argv)
 {
 	if (!argv[1]) {
 		/* Called without arguments */
-		const struct bb_applet *a;
+		const char *a;
 		int col, output_width;
  help:
 		output_width = 80;
 		if (ENABLE_FEATURE_AUTOWIDTH) {
-			/* Obtain the terminal width.  */
+			/* Obtain the terminal width */
 			get_terminal_width_height(0, &output_width, NULL);
 		}
 		/* leading tab and room to wrap */
 		output_width -= sizeof("start-stop-daemon, ") + 8;
 
-		printf("%s\n"
-		       "Copyright (C) 1998-2006  Erik Andersen, Rob Landley, and others.\n"
-		       "Licensed under GPLv2.  See source distribution for full notice.\n"
+		printf("%s multi-call binary\n", bb_banner); /* reuse const string... */
+		printf("Copyright (C) 1998-2007 Erik Andersen, Rob Landley, Denys Vlasenko\n"
+		       "and others. Licensed under GPLv2.\n"
+		       "See source distribution for full notice.\n"
 		       "\n"
 		       "Usage: busybox [function] [arguments]...\n"
-		       "   or: [function] [arguments]...\n"
+		       "   or: function [arguments]...\n"
 		       "\n"
-		       "\tGitBox is a customized version of BusyBox for Git\n"
 		       "\tBusyBox is a multi-call binary that combines many common Unix\n"
 		       "\tutilities into a single executable.  Most people will create a\n"
 		       "\tlink to busybox for each function they wish to use and BusyBox\n"
 		       "\twill act like whatever it was invoked as!\n"
-		       "\nCurrently defined functions:\n", bb_msg_full_version);
+		       "\n"
+		       "Currently defined functions:\n");
 		col = 0;
-		a = applets;
-		while (a->name) {
+		a = applet_names;
+		while (*a) {
 			if (col > output_width) {
 				puts(",");
 				col = 0;
 			}
-			col += printf("%s%s", (col ? ", " : "\t"), a->name);
-			a++;
+			col += printf("%s%s", (col ? ", " : "\t"), a);
+			a += strlen(a) + 1;
 		}
 		puts("\n");
 		return 0;
 	}
 
 	if (ENABLE_FEATURE_INSTALLER && strcmp(argv[1], "--install") == 0) {
-		int use_symbolic_links = 0;
-		char *busybox;
-
-		/* to use symlinks, or not to use symlinks... */
-		if (argv[2])
-			if (strcmp(argv[2], "-s") == 0)
-				use_symbolic_links = 1;
-
-		/* link */
-		busybox = xmalloc_readlink_or_warn("/proc/self/exe");
+		const char *busybox;
+		busybox = xmalloc_readlink(bb_busybox_exec_path);
 		if (!busybox)
-			return 1;
-		install_links(busybox, use_symbolic_links);
-		if (ENABLE_FEATURE_CLEAN_UP)
-			free(busybox);
+			busybox = bb_busybox_exec_path;
+		/* -s makes symlinks */
+		install_links(busybox, argv[2] && strcmp(argv[2], "-s") == 0);
 		return 0;
 	}
 
@@ -613,13 +627,14 @@ static int busybox_main(char **argv)
 		/* "busybox <applet> arg1 arg2 ..." */
 		argv++;
 	}
-	/* we want "<argv[0]>: applet not found", not "busybox: ..." */
-	applet_name = argv[0];
-	run_applet_and_exit(argv[0], argv);
+	/* We support "busybox /a/path/to/applet args..." too. Allows for
+	 * "#!/bin/busybox"-style wrappers */
+	applet_name = bb_get_last_path_component_nostrip(argv[0]);
+	run_applet_and_exit(applet_name, argv);
 	bb_error_msg_and_die("applet not found");
 }
 
-void run_current_applet_and_exit(char **argv)
+void run_applet_no_and_exit(int applet_no, char **argv)
 {
 	int argc = 1;
 
@@ -627,39 +642,33 @@ void run_current_applet_and_exit(char **argv)
 		argc++;
 
 	/* Reinit some shared global data */
-	optind = 1;
 	xfunc_error_retval = EXIT_FAILURE;
 
-	applet_name = current_applet->name;
+	applet_name = APPLET_NAME(applet_no);
 	if (argc == 2 && !strcmp(argv[1], "--help"))
 		bb_show_usage();
 	if (ENABLE_FEATURE_SUID)
-		check_suid(current_applet);
-	exit(current_applet->main(argc, argv));
+		check_suid(applet_no);
+	exit(applet_main[applet_no](argc, argv));
 }
 
 void run_applet_and_exit(const char *name, char **argv)
 {
-	current_applet = find_applet_by_name(name);
-	if (current_applet)
-		run_current_applet_and_exit(argv);
-/*	if (!strncmp(name, "box", 3)) */
+	int applet = find_applet_by_name(name);
+	if (applet >= 0)
+		run_applet_no_and_exit(applet, argv);
+/*	if (!strncmp(name, "busybox", 7)) */
 		exit(busybox_main(argv));
 }
 
 
-#ifdef __GLIBC__
-/* Make it reside in R/W memory: */
-int *const bb_errno __attribute__ ((section (".data")));
+#if ENABLE_BUILD_LIBBUSYBOX
+int lbb_main(int argc, char **argv)
+#else
+int main(int argc, char **argv)
 #endif
-
-int gitbox_main(int argc, char **argv)
 {
-	const char *s;
-
-#ifdef __GLIBC__
-	(*(int **)&bb_errno) = __errno_location();
-#endif
+	lbb_prepare("busybox", argv);
 
 #if !BB_MMU
 	/* NOMMU re-exec trick sets high-order bit in first byte of name */
@@ -671,15 +680,9 @@ int gitbox_main(int argc, char **argv)
 	applet_name = argv[0];
 	if (applet_name[0] == '-')
 		applet_name++;
-	s = strrchr(applet_name, '/');
-	if (s)
-		applet_name = s + 1;
+	applet_name = bb_basename(applet_name);
 
 	parse_config_file(); /* ...maybe, if FEATURE_SUID_CONFIG */
-
-	/* Set locale for everybody except 'init' */
-	if (ENABLE_LOCALE_SUPPORT && getpid() != 1)
-		setlocale(LC_ALL, "");
 
 	run_applet_and_exit(applet_name, argv);
 	bb_error_msg_and_die("applet not found");
