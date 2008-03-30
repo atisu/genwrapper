@@ -17,9 +17,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
-#if (!defined __MINGW32__ && !defined __APPLE__)
-#include <netdb.h>
-#endif
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
@@ -73,13 +70,9 @@
 
 #include "autoconf.h"
 #include "git-compat-util.h"
-
-#include "pwd_.h"
-#include "grp_.h"
-/* ifdef it out, because it may include <shadow.h> */
-/* and we may not even _have_ <shadow.h>! */
-#if ENABLE_FEATURE_SHADOWPASSWDS
-#include "shadow_.h"
+#ifndef __linux__
+/* do not try to set clock on systems other than linux */
+# define stime(param)  -1
 #endif
 
 /* Some libc's don't declare it, help them */
@@ -266,9 +259,6 @@ extern char *bb_get_last_path_component_strip(char *path);
 /* "abc/def/" -> "" and it never modifies 'path' */
 extern char *bb_get_last_path_component_nostrip(const char *path);
 
-int ndelay_on(int fd);
-int ndelay_off(int fd);
-int close_on_exec_on(int fd);
 void xdup2(int, int);
 void xmove_fd(int, int);
 
@@ -281,21 +271,6 @@ char *xmalloc_readlink(const char *path);
 char *xmalloc_readlink_or_warn(const char *path);
 char *xrealloc_getcwd_or_warn(char *cwd);
 
-#if 0
-//enum {
-//	BB_SIGS_FATAL = ,
-//};
-void bb_signals(int sigs, void (*f)(int));
-/* Unlike signal() and bb_signals, sets handler with sigaction()
- * and in a way that while signal handler is run, no other signals
- * will be blocked: */
-void bb_signals_recursive(int sigs, void (*f)(int));
-void sig_block(int);
-void sig_unblock(int);
-/* UNUSED: void sig_blocknone(void); */
-void sig_pause(void);
-#endif
-
 void xsetgid(gid_t gid);
 void xsetuid(uid_t uid);
 void xchdir(const char *path);
@@ -306,6 +281,7 @@ int xopen(const char *pathname, int flags);
 int xopen3(const char *pathname, int flags, int mode);
 int open_or_warn(const char *pathname, int flags);
 int open3_or_warn(const char *pathname, int flags, int mode);
+int open_or_warn_stdin(const char *pathname);
 void xrename(const char *oldpath, const char *newpath);
 int rename_or_warn(const char *oldpath, const char *newpath);
 off_t xlseek(int fd, off_t offset, int whence);
@@ -331,7 +307,9 @@ struct BUG_too_small {
 	char BUG_family_t_too_small[(0
 			| AF_UNSPEC
 			| AF_INET
+#ifdef AF_INET6
 			| AF_INET6
+#endif
 			| AF_UNIX
 #ifdef AF_PACKET
 			| AF_PACKET
@@ -348,9 +326,7 @@ struct BUG_too_small {
 int xsocket(int domain, int type, int protocol);
 void xbind(int sockfd, struct sockaddr *my_addr, socklen_t addrlen);
 void xlisten(int s, int backlog);
-#ifndef __MINGW32__
-void xconnect(int s, const struct sockaddr *s_addr, socklen_t addrlen);
-#endif
+void xconnect(int s, const struct sockaddr *sock_addr, socklen_t addrlen);
 ssize_t xsendto(int s, const void *buf, size_t len, const struct sockaddr *to,
 				socklen_t tolen);
 /* SO_REUSEADDR allows a server to rebind to an address that is already
@@ -374,6 +350,7 @@ typedef struct len_and_sockaddr {
 	} u;
 } len_and_sockaddr;
 enum {
+	LSA_LEN_SIZE = offsetof(len_and_sockaddr, u),
 	LSA_SIZEOF_SA = sizeof(
 		union {
 			struct sockaddr sa;
@@ -389,7 +366,12 @@ enum {
  * af == AF_UNSPEC will result in trying to create IPv6 socket,
  * and if kernel doesn't support it, IPv4.
  */
-int xsocket_type(len_and_sockaddr **lsap, USE_FEATURE_IPV6(int af,) int sock_type);
+#if ENABLE_FEATURE_IPV6
+int xsocket_type(len_and_sockaddr **lsap, int af, int sock_type);
+#else
+int xsocket_type(len_and_sockaddr **lsap, int sock_type);
+#define xsocket_type(lsap, af, sock_type) xsocket_type((lsap), (sock_type))
+#endif
 int xsocket_stream(len_and_sockaddr **lsap);
 /* Create server socket bound to bindaddr:port. bindaddr can be NULL,
  * numeric IP ("N.N.N.N") or numeric IPv6 address,
@@ -414,14 +396,13 @@ len_and_sockaddr* host2sockaddr(const char *host, int port);
 /* Version which dies on error */
 len_and_sockaddr* xhost2sockaddr(const char *host, int port);
 len_and_sockaddr* xdotted2sockaddr(const char *host, int port);
-#if ENABLE_FEATURE_IPV6
 /* Same, useful if you want to force family (e.g. IPv6) */
+#if !ENABLE_FEATURE_IPV6
+#define host_and_af2sockaddr(host, port, af) host2sockaddr((host), (port))
+#define xhost_and_af2sockaddr(host, port, af) xhost2sockaddr((host), (port))
+#else
 len_and_sockaddr* host_and_af2sockaddr(const char *host, int port, sa_family_t af);
 len_and_sockaddr* xhost_and_af2sockaddr(const char *host, int port, sa_family_t af);
-#else
-/* [we evaluate af: think about "host_and_af2sockaddr(..., af++)"] */
-#define host_and_af2sockaddr(host, port, af) ((void)(af), host2sockaddr((host), (port)))
-#define xhost_and_af2sockaddr(host, port, af) ((void)(af), xhost2sockaddr((host), (port)))
 #endif
 /* Assign sin[6]_port member if the socket is an AF_INET[6] one,
  * otherwise no-op. Useful for ftp.
@@ -438,19 +419,16 @@ char* xmalloc_sockaddr2hostonly_noport(const struct sockaddr *sa);
 /* inet_[ap]ton on steroids */
 char* xmalloc_sockaddr2dotted(const struct sockaddr *sa);
 char* xmalloc_sockaddr2dotted_noport(const struct sockaddr *sa);
-// "old" (ipv4 only) API
-// users: traceroute.c hostname.c - use _list_ of all IPs
-struct hostent *xgethostbyname(const char *name);
-// Also mount.c and inetd.c are using gethostbyname(),
-// + inet_common.c has additional IPv4-only stuff
 
 
 void socket_want_pktinfo(int fd);
 ssize_t send_to_from(int fd, void *buf, size_t len, int flags,
-		const struct sockaddr *from, const struct sockaddr *to,
+		const struct sockaddr *to,
+		const struct sockaddr *from,
 		socklen_t tolen);
 ssize_t recv_from_to(int fd, void *buf, size_t len, int flags,
-		struct sockaddr *from, struct sockaddr *to,
+		struct sockaddr *from,
+		struct sockaddr *to,
 		socklen_t sa_size);
 
 #if 0 /* Use the ones in git-compat-util.h */
@@ -487,6 +465,8 @@ extern void *xzalloc(size_t size);
 extern void *xrealloc(void *old, size_t size);
 
 extern ssize_t safe_read(int fd, void *buf, size_t count);
+// NB: will return short read on error, not -1,
+// if some data was read before error occurred
 extern ssize_t full_read(int fd, void *buf, size_t count);
 #if 0 /* Use the one in git-compat-util.h */
 extern void xread(int fd, void *buf, size_t count);
@@ -499,6 +479,8 @@ extern ssize_t open_read_close(const char *filename, void *buf, size_t count);
 extern void *xmalloc_open_read_close(const char *filename, size_t *sizep);
 
 extern ssize_t safe_write(int fd, const void *buf, size_t count);
+// NB: will return short write on error, not -1,
+// if some data was written before error occurred
 extern ssize_t full_write(int fd, const void *buf, size_t count);
 #if 0 /* Use the one in git-compat-util.h */
 extern void xwrite(int fd, const void *buf, size_t count);
@@ -524,10 +506,11 @@ extern FILE *xfopen(const char *filename, const char *mode);
 /* Prints warning to stderr and returns NULL on failure: */
 extern FILE *fopen_or_warn(const char *filename, const char *mode);
 /* "Opens" stdin if filename is special, else just opens file: */
+extern FILE *xfopen_stdin(const char *filename);
 extern FILE *fopen_or_warn_stdin(const char *filename);
 
-/* Convert each alpha char in str to lower-case */
-char* str_tolower(char *str);
+int bb_pstrcmp(const void *a, const void *b);
+void qsort_string_vector(char **sv, unsigned count);
 
 char *utoa(unsigned n);
 #ifdef __MINGW32__
@@ -587,15 +570,8 @@ void parse_chown_usergroup_or_die(struct bb_uidgid_t *u, char *user_group);
 */
 char *bb_getpwuid(char *name, int bufsize, long uid);
 char *bb_getgrgid(char *group, int bufsize, long gid);
-/* versions which cache results (useful for ps, ls etc) */
-#ifndef GITBOX
-const char* get_cached_username(uid_t uid);
-const char* get_cached_groupname(gid_t gid);
-#endif
-void clear_username_cache(void);
 /* internally usernames are saved in fixed-sized char[] buffers */
 enum { USERNAME_MAX_SIZE = 16 - sizeof(int) };
-
 
 int execable_file(const char *name);
 char *find_execable(const char *filename);
@@ -665,7 +641,7 @@ int run_nofork_applet_prime(struct nofork_save_area *old, int applet_no, char **
  *
  * forkexit_or_rexec(argv) = bare-bones "fork + parent exits" on MMU,
  *      "vfork + re-exec ourself" on NOMMU. No fd redirection, no setsid().
- *      Currently used for openvt. On MMU ignores argv.
+ *      Currently used for openvt and setsid. On MMU ignores argv.
  *
  * Helper for network daemons in foreground mode:
  *
@@ -701,6 +677,7 @@ void bb_sanitize_stdio(void);
 int sanitize_env_if_suid(void);
 
 
+extern const char *const bb_argv_dash[]; /* "-", NULL */
 extern const char *opt_complementary;
 #if ENABLE_GETOPT_LONG
 #define No_argument "\0"
@@ -885,12 +862,6 @@ char *bb_simplify_path(const char *path);
 
 #define FAIL_DELAY 3
 extern void bb_do_delay(int seconds);
-#ifndef __MINGW32__
-extern void change_identity(const struct passwd *pw);
-extern const char *change_identity_e2str(const struct passwd *pw);
-#endif
-extern void run_shell(const char *shell, int loginshell, const char *command, const char **additional_args) ATTRIBUTE_NORETURN;
-extern void run_shell(const char *shell, int loginshell, const char *command, const char **additional_args);
 #if ENABLE_SELINUX
 extern void renew_current_security_context(void);
 extern void set_current_security_context(security_context_t sid);
@@ -904,29 +875,6 @@ extern void selinux_preserve_fcontext(int fdesc);
 extern void selinux_or_die(void);
 extern int restricted_shell(const char *shell);
 
-/* setup_environment:
- * if loginshell = 1: cd(pw->pw_dir), clear environment, then set
- *   TERM=(old value)
- *   USER=pw->pw_name, LOGNAME=pw->pw_name
- *   PATH=bb_default_[root_]path
- *   HOME=pw->pw_dir
- *   SHELL=shell
- * else if changeenv = 1:
- *   if not root (if pw->pw_uid != 0):
- *     USER=pw->pw_name, LOGNAME=pw->pw_name
- *   HOME=pw->pw_dir
- *   SHELL=shell
- * else does nothing
- */
-#ifndef __MINGW32__
-extern void setup_environment(const char *shell, int loginshell, int changeenv, const struct passwd *pw);
-extern int correct_password(const struct passwd *pw);
-#endif
-/* Returns a ptr to static storage */
-extern char *pw_encrypt(const char *clear, const char *salt);
-#ifndef __MINGW32__
-extern int obscure(const char *old, const char *newval, const struct passwd *pwdp);
-#endif
 
 int index_in_str_array(const char *const string_array[], const char *key);
 int index_in_strings(const char *strings, const char *key);
@@ -967,20 +915,9 @@ void bb_xioctl(int fd, int request, void *argp);
 #define xioctl(fd,request,argp)        bb_xioctl(fd,request,argp)
 #endif
 
-#ifndef __MINGW32__
 char *is_in_ino_dev_hashtable(const struct stat *statbuf);
 void add_to_ino_dev_hashtable(const struct stat *statbuf, const char *name);
-#endif
 void reset_ino_dev_hashtable(void);
-#ifndef GITBOX
-/* In GITBOX it's only used by tar so skip wrapping */
-#ifdef __GLIBC__
-/* At least glibc has horrendously large inline for this, so wrap it */
-unsigned long long bb_makedev(unsigned int major, unsigned int minor);
-#undef makedev
-#define makedev(a,b) bb_makedev(a,b)
-#endif
-#endif
 
 
 #if ENABLE_FEATURE_EDITING
@@ -1093,7 +1030,7 @@ enum {
 			| PSSCAN_STIME | PSSCAN_UTIME | PSSCAN_START_TIME
 			| PSSCAN_TTY,
 };
-procps_status_t* alloc_procps_scan(int flags);
+//procps_status_t* alloc_procps_scan(void);
 void free_procps_scan(procps_status_t* sp);
 procps_status_t* procps_scan(procps_status_t* sp, int flags);
 /* Format cmdline (up to col chars) into char buf[col+1] */
@@ -1174,7 +1111,7 @@ extern const char bb_path_group_file[];
 extern const char bb_path_motd_file[];
 extern const char bb_path_wtmp_file[];
 extern const char bb_dev_null[];
-extern char *bb_busybox_exec_path;
+extern char *const bb_busybox_exec_path;
 /* util-linux manpage says /sbin:/bin:/usr/sbin:/usr/bin,
  * but I want to save a few bytes here */
 extern const char bb_PATH_root_path[]; /* "PATH=/sbin:/usr/sbin:/bin:/usr/bin" */
@@ -1196,10 +1133,14 @@ extern char bb_common_bufsiz1[COMMON_BUFSIZE];
 struct globals;
 /* '*const' ptr makes gcc optimize code much better.
  * Magic prevents ptr_to_globals from going into rodata.
- * If you want to assign a value, use PTR_TO_GLOBALS = xxx */
+ * If you want to assign a value, use SET_PTR_TO_GLOBALS(x) */
 extern struct globals *const ptr_to_globals;
-#define PTR_TO_GLOBALS (*(struct globals**)&ptr_to_globals)
-
+/* At least gcc 3.4.6 on mipsel system needs optimization barrier */
+#define barrier() asm volatile("":::"memory")
+#define SET_PTR_TO_GLOBALS(x) do { \
+	(*(struct globals**)&ptr_to_globals) = (x); \
+	barrier(); \
+} while (0)
 
 /* You can change LIBBB_DEFAULT_LOGIN_SHELL, but don't use it,
  * use bb_default_login_shell and following defines.

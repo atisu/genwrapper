@@ -4,6 +4,3 @@ Windows with MINGW, this version should also compile on Linux and Mac OS X.
 
 Normally a simple 'make' is enough to build it, the command to build
 it under Windows with the Cygwin compiler is in makecmd-cygwin.
-
-The directory containing the executable is prepended to PATH for the reexec
-mechanism to find it.

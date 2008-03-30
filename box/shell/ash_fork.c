@@ -676,7 +676,7 @@ redir_send(int fd)
 		int_send(fd, rd->nullredirs);
 	}
 	guard_send(fd, -1);
-	int_send(fd, nullredirs);
+	int_send(fd, g_nullredirs);
 	int_send(fd, preverrout_fd);
 	guard_send(fd, -1);
 }
@@ -698,7 +698,7 @@ redir_recv(int fd)
 		buf_recv(fd, rd->renamed, 10*sizeof(int));
 		rd->nullredirs = int_recv(fd);
 	}
-	nullredirs = int_recv(fd);
+	g_nullredirs = int_recv(fd);
 	preverrout_fd = int_recv(fd);
 	guard_recv1(fd, -1);
 }
@@ -724,7 +724,7 @@ shparam_recv(int fd)
 {
 	int i;
 	shellparam.nparam = int_recv(fd);
-	shellparam.malloc = 1;
+	shellparam.malloced = 1;
 #if ENABLE_ASH_GETOPTS
 	shellparam.optind = int_recv(fd);
 	shellparam.optoff = int_recv(fd);
@@ -1054,67 +1054,6 @@ shellspawn(char **argv, const char *path, int idx, struct strlist *varlist)
 	return e;
 }
 
-static const char *
-updatepwd(const char *dir)
-{
-	char *new;
-	char *p;
-	char *cdcomppath;
-	const char *lim;
-	int abspath = *dir && dir[1] == ':';
-
-	cdcomppath = ststrdup(dir);
-	STARTSTACKSTR(new);
-	if (!abspath) {
-		if (curdir == nullstr)
-			return 0;
-		new = stack_putstr(curdir, new);
-	}
-	new = makestrspace(strlen(dir) + 2, new);
-	lim = stackblock() + 1;
-	if (!abspath) {
-		if (new[-1] != '/')
-			USTPUTC('/', new);
-		if (new > lim && *lim == '/')
-			lim++;
-	} else {
-		USTPUTC(*dir, new);
-		USTPUTC(':', new);
-		cdcomppath += 2;
-		if (dir[2] == '/') {
-			USTPUTC('/', new);
-			cdcomppath ++;
-		} else {
-			/* FIXME */
-		}
-	}
-	p = strtok(cdcomppath, "/");
-	while (p) {
-		switch (*p) {
-		case '.':
-			if (p[1] == '.' && p[2] == '\0') {
-				while (new > lim) {
-					STUNPUTC(new);
-					if (new[-1] == '/')
-						break;
-				}
-				break;
-			}
-			if (p[1] == '\0')
-				break;
-			/* fall through */
-		default:
-			new = stack_putstr(p, new);
-			USTPUTC('/', new);
-		}
-		p = strtok(0, "/");
-	}
-	if (new > lim)
-		STUNPUTC(new);
-	*new = 0;
-	return stackblock();
-}
-
 static int
 openhere(union node *redir)
 {
@@ -1167,52 +1106,4 @@ static int set_exitstatus(int val, const char **argv,int *out)
 			return 0;
 	}
 	return -1;
-}
-static void
-evalpipe(union node *n, int flags)
-{
-	struct forkshell fs;
-	struct nodelist *lp;
-	int pipelen;
-	int prevfd;
-	int pip[2];
-
-	pipelen = 0;
-	for (lp = n->npipe.cmdlist; lp; lp = lp->next)
-		pipelen++;
-	flags |= EV_EXIT;
-	INT_OFF;
-	prevfd = -1;
-	for (lp = n->npipe.cmdlist; lp; lp = lp->next) {
-		prehash(lp->n);
-		pip[1] = -1;
-		if (lp->next) {
-			if (_pipe(pip, 0, 0) < 0) {
-				close(prevfd);
-				ash_msg_and_raise_error("pipe call failed");
-			}
-		}
-		if (prevfd != -1)
-			forkshell_cleanup(&fs);
-		memset(&fs, 0, sizeof(fs));
-		fs.fp = "evalpipe";
-		fs.flags = flags;
-		fs.n = lp->n;
-		fs.cmd.in = prevfd > 0 ? prevfd : 0;
-		fs.cmd.out = pip[1] > 1 ? pip[1] : 1;
-		forkshell_init(&fs);
-		if (start_command(&fs.cmd))
-			ash_msg_and_raise_error("unable to spawn shell");
-		forkshell_transfer(&fs);
-		forkshell_transfer_done(&fs);
-		if (prevfd >= 0)
-			close(prevfd);
-		prevfd = pip[0];
-		if (pip[1] >= 0)
-			close(pip[1]);
-	}
-	if (n->npipe.backgnd == 0) {
-		set_exitstatus(finish_command(&fs.cmd), fs.cmd.argv, NULL); /* the last command in pipe */
-	}
-	INT_ON;
 }

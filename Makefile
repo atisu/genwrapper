@@ -28,8 +28,6 @@ all:
 #
 # Define NO_STRCASESTR if you don't have strcasestr.
 #
-# Define NO_STRLCPY if you don't have strlcpy.
-#
 # Define NO_STRTOUMAX if you don't have strtoumax in the C library.
 # If your compiler also does not support long long or does not have
 # strtoull, define NO_STRTOULL.
@@ -195,8 +193,8 @@ GIT_OBJS = standalone-box.o ctype.o quote.o usage.o \
 BOX_FILE = box/libbox.a
 
 BOX_H = \
-	applets.h autoconf.h busybox.h dump.h grp_.h \
-	libbb.h platform.h pwd_.h shadow_.h \
+	applets.h autoconf.h busybox.h dump.h \
+	libbb.h platform.h shadow_.h \
 	usage.h xatonum.h xregex.h
 
 BOX_OBJS = \
@@ -208,12 +206,14 @@ BOX_OBJS = \
 	archival/libunarchive/data_extract_to_stdout.o \
 	archival/libunarchive/data_skip.o \
 	archival/libunarchive/decompress_bunzip2.o \
+	archival/libunarchive/decompress_unlzma.o \
 	archival/libunarchive/decompress_unzip.o \
 	archival/libunarchive/filter_accept_all.o \
 	archival/libunarchive/filter_accept_reject_list.o \
 	archival/libunarchive/find_list_entry.o \
 	archival/libunarchive/get_header_tar.o \
 	archival/libunarchive/header_list.o \
+	archival/libunarchive/header_verbose_list.o \
 	archival/libunarchive/header_skip.o \
 	archival/libunarchive/init_handle.o \
 	archival/libunarchive/seek_by_jump.o \
@@ -227,6 +227,7 @@ BOX_OBJS = \
 	coreutils/cut.o \
 	coreutils/date.o \
 	coreutils/dirname.o \
+	coreutils/dos2unix.o \
 	coreutils/echo.o \
 	coreutils/env.o \
 	coreutils/expr.o \
@@ -248,6 +249,7 @@ BOX_OBJS = \
 	coreutils/sleep.o \
 	coreutils/sort.o \
 	coreutils/sum.o \
+	coreutils/tac.o \
 	coreutils/tail.o \
 	coreutils/test.o \
 	coreutils/touch.o \
@@ -268,6 +270,7 @@ BOX_OBJS = \
 	libbb/ask_confirmation.o \
 	libbb/bb_basename.o \
 	libbb/bb_do_delay.o \
+	libbb/bb_qsort.o \
 	libbb/bb_strtonum.o \
 	libbb/chomp.o \
 	libbb/compare_string_array.o \
@@ -290,6 +293,7 @@ BOX_OBJS = \
 	libbb/getopt32.o \
 	libbb/herror_msg_and_die.o \
 	libbb/herror_msg.o \
+	libbb/human_readable.o \
 	libbb/info_msg.o \
 	libbb/inode_hash.o \
 	libbb/isdirectory.o \
@@ -305,6 +309,7 @@ BOX_OBJS = \
 	libbb/perror_nomsg_and_die.o \
 	libbb/perror_nomsg.o \
 	libbb/process_escape_sequence.o \
+	libbb/ptr_to_globals.o \
 	libbb/read.o \
 	libbb/recursive_action.o \
 	libbb/remove_file.o \
@@ -324,12 +329,17 @@ BOX_OBJS = \
 	libbb/xreadlink.o \
 	libbb/xregcomp.o \
 	shell/ash.o \
+	shell/ash_ptr_hack.o
 
 ifeq ($(BOINC),yes)
 BOX_OBJS += boinc/boinc.o
 endif
 
-BOX_CFLAGS = -Ibox/include -Ibox/libbb -I. -DBB_VER=\"$(GIT_VERSION)\" -DBB_BT=AUTOCONF_TIMESTAMP
+GIT_VERSION = 1.5.3.GIT
+
+BOX_CFLAGS = -Ibox/include -Ibox/libbb \
+	-I. -DBB_VER=BUSYBOX_VERSION \
+	-DBB_BT="\"GitBox v$(GIT_VERSION), \" AUTOCONF_TIMESTAMP"
 
 BOX_H := $(patsubst %.h,box/include/%.h,$(BOX_H))
 BOX_OBJS := $(patsubst %.o,box/%.o,$(BOX_OBJS))
@@ -344,17 +354,10 @@ EXTLIBS = -lz
 # because maintaining the nesting to match is a pain.  If
 # we had "elif" things would have been much nicer...
 
-ifeq ($(uname_S),Linux)
-	NO_STRLCPY = YesPlease
-endif
-ifeq ($(uname_S),GNU/kFreeBSD)
-	NO_STRLCPY = YesPlease
-endif
 ifeq ($(uname_S),Darwin)
 	NEEDS_SSL_WITH_CRYPTO = YesPlease
 	NEEDS_LIBICONV = YesPlease
 	OLD_ICONV = UnfortunatelyYes
-	NO_STRLCPY = YesPlease
 	BASIC_CFLAGS += -fnested-functions
 endif
 ifeq ($(uname_S),SunOS)
@@ -418,14 +421,12 @@ ifeq ($(uname_S),NetBSD)
 endif
 ifeq ($(uname_S),AIX)
 	NO_STRCASESTR=YesPlease
-	NO_STRLCPY = YesPlease
 	NEEDS_LIBICONV=YesPlease
 endif
 ifeq ($(uname_S),IRIX64)
 	NO_IPV6=YesPlease
 	NO_SETENV=YesPlease
 	NO_STRCASESTR=YesPlease
-	NO_STRLCPY = YesPlease
 	NO_SOCKADDR_STORAGE=YesPlease
 	SHELL_PATH=/usr/gnu/bin/bash
 	BASIC_CFLAGS += -DPATH_MAX=1024
@@ -446,7 +447,6 @@ endif
 	NO_SETENV=YesPlease
 	NO_UNSETENV=YesPlease
 	NO_STRCASESTR=YesPlease
-	NO_STRLCPY=YesPlease
 	NO_ICONV=YesPlease
 	NO_C99_FORMAT = YesPlease
 	NO_STRTOUMAX = YesPlease
@@ -555,10 +555,6 @@ ifdef NO_STRCASESTR
 	COMPAT_CFLAGS += -DNO_STRCASESTR
 	COMPAT_OBJS += compat/strcasestr.o
 endif
-ifdef NO_STRLCPY
-	COMPAT_CFLAGS += -DNO_STRLCPY
-	COMPAT_OBJS += compat/strlcpy.o
-endif
 ifdef NO_STRTOUMAX
 	COMPAT_CFLAGS += -DNO_STRTOUMAX
 	COMPAT_OBJS += compat/strtoumax.o
@@ -630,9 +626,9 @@ ifneq ($(findstring $(MAKEFLAGS),s),s)
 ifndef V
 	QUIET_CC       = @echo '   ' CC $@;
 	QUIET_AR       = @echo '   ' AR $@;
-	QUIET_LINK     = @echo '   ' LINK $@;
-	QUIET_BUILT_IN = @echo '   ' BUILTIN $@;
-	QUIET_GEN      = @echo '   ' GEN $@;
+	QUIET_LINK     = @echo ' ' LINK $@;
+	QUIET_BUILT_IN = @echo  BUILTIN $@;
+	QUIET_GEN      = @echo '  ' GEN $@;
 	QUIET_SUBDIR0  = +@subdir=
 	QUIET_SUBDIR1  = ;$(NO_SUBDIR) echo '   ' SUBDIR $$subdir; \
 			 $(MAKE) $(PRINT_DIR) -C $$subdir

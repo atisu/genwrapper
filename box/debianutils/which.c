@@ -12,7 +12,7 @@
 
 #include "libbb.h"
 
-int which_main(int argc, char **argv);
+int which_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int which_main(int argc, char **argv)
 {
 	int status = EXIT_SUCCESS;
@@ -22,9 +22,11 @@ int which_main(int argc, char **argv)
 		bb_show_usage();
 	}
 
+	/* This matches what is seen on e.g. ubuntu
+	 * "which" there is a shell script */
 #ifndef __MINGW32__
 	if (!getenv("PATH")) {
-		setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin", 1);
+		putenv((char*)bb_PATH_root_path);
 	}
 #endif
 

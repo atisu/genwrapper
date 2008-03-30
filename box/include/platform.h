@@ -52,7 +52,8 @@
 # define ATTRIBUTE_NORETURN __attribute__ ((__noreturn__))
 # define ATTRIBUTE_PACKED __attribute__ ((__packed__))
 # define ATTRIBUTE_ALIGNED(m) __attribute__ ((__aligned__(m)))
-# if __GNUC_PREREQ (3,0)
+/* __NO_INLINE__: some gcc's do not honor inlining! :( */
+# if __GNUC_PREREQ (3,0) && !defined(__NO_INLINE__)
 #  define ALWAYS_INLINE __attribute__ ((always_inline)) inline
 /* I've seen a toolchain where I needed __noinline__ instead of noinline */
 #  define NOINLINE      __attribute__((__noinline__))
@@ -98,31 +99,26 @@
 
 /* ---- Endian Detection ------------------------------------ */
 
-#if defined __MINGW32__
-# define __BIG_ENDIAN__ 0
-# define __BYTE_ORDER 1234
-#elif (defined __digital__ && defined __unix__)
+#if (defined __digital__ && defined __unix__)
 # include <sex.h>
-# define __BIG_ENDIAN__ (BYTE_ORDER == BIG_ENDIAN)
-# define __BYTE_ORDER BYTE_ORDER
-#elif !defined __APPLE__
-# include <byteswap.h>
+#elif defined __MINGW32__
+/* defined in <sys/param.h> but that would include other files too */
+#define BIG_ENDIAN      4321
+#define LITTLE_ENDIAN   1234
+#define BYTE_ORDER      LITTLE_ENDIAN
+#elif defined __APPLE__
+# include <machine/endian.h>
+#else
 # include <endian.h>
 #endif
+#include "byteswap.h"
 
-#ifdef __BIG_ENDIAN__
-# define BB_BIG_ENDIAN 1
-# define BB_LITTLE_ENDIAN 0
-#elif __BYTE_ORDER == __BIG_ENDIAN
+#if BYTE_ORDER == BIG_ENDIAN
 # define BB_BIG_ENDIAN 1
 # define BB_LITTLE_ENDIAN 0
 #else
 # define BB_BIG_ENDIAN 0
 # define BB_LITTLE_ENDIAN 1
-#endif
-
-#if defined __APPLE__ || defined __MINGW32__
-#include "byteswap.h"
 #endif
 
 #if BB_BIG_ENDIAN
@@ -142,18 +138,15 @@
 #endif
 
 /* ---- Networking ------------------------------------------ */
-#ifdef __MINGW32__
-# include <winsock2.h>
-#else
-#ifndef __APPLE__
+#if defined __MINGW32__
+# include <ws2tcpip.h>
+#elif !defined __APPLE__
 # include <arpa/inet.h>
+# ifndef __socklen_t_defined
+typedef int socklen_t;
+# endif
 #else
 # include <netinet/in.h>
-#endif
-#endif
-
-#if (!defined __socklen_t_defined && !defined _SOCKLEN_T)
-typedef int socklen_t;
 #endif
 
 /* ---- Compiler dependent settings ------------------------- */
@@ -278,12 +271,6 @@ static ALWAYS_INLINE char* strchrnul(const char *s, char c)
 #if (defined __GLIBC__ && __GLIBC__ <= 2 && __GLIBC_MINOR__ < 1) || \
     defined __UC_LIBC__
 # define lchown chown
-#endif
-
-/* THIS SHOULD BE CLEANED OUT OF THE TREE ENTIRELY */
-/* FIXME: fix tar.c! */
-#if !defined(FNM_LEADING_DIR) && !defined(__MINGW32__)
-#define FNM_LEADING_DIR 0
 #endif
 
 #if (defined __digital__ && defined __unix__)

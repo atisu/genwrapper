@@ -87,7 +87,6 @@ int tail_main(int argc, char **argv)
 	bool from_top;
 	int header_threshhold = 1;
 	const char *str_c, *str_n;
-	USE_FEATURE_FANCY_TAIL(const char *str_s;)
 
 	char *tailbuf;
 	size_t tailbufsize;
@@ -101,21 +100,18 @@ int tail_main(int argc, char **argv)
 
 #if ENABLE_INCLUDE_SUSv2 || ENABLE_FEATURE_FANCY_TAIL
 	/* Allow legacy syntax of an initial numeric option without -n. */
-	if (argc >= 2 && (argv[1][0] == '+' || argv[1][0] == '-')
+	if (argv[1] && (argv[1][0] == '+' || argv[1][0] == '-')
 	 && isdigit(argv[1][1])
 	) {
-		/* replacing arg[0] with "-n" can segfault, so... */
-		argv[1] = xasprintf("-n%s", argv[1]);
-#if 0 /* If we ever decide to make tail NOFORK */
-		char *s = alloca(strlen(argv[1]) + 3);
-		sprintf(s, "-n%s", argv[1]);
-		argv[1] = s;
-#endif
+		count = eat_num(&argv[1][1]);
+		argv++;
+		argc--;
 	}
 #endif
 
+	USE_FEATURE_FANCY_TAIL(opt_complementary = "s+";) /* -s N */
 	opt = getopt32(argv, "fc:n:" USE_FEATURE_FANCY_TAIL("qs:v"),
-			&str_c, &str_n USE_FEATURE_FANCY_TAIL(,&str_s));
+			&str_c, &str_n USE_FEATURE_FANCY_TAIL(,&sleep_period));
 #define FOLLOW (opt & 0x1)
 #define COUNT_BYTES (opt & 0x2)
 	//if (opt & 0x1) // -f
@@ -123,7 +119,6 @@ int tail_main(int argc, char **argv)
 	if (opt & 0x4) count = eat_num(str_n); // -n
 #if ENABLE_FEATURE_FANCY_TAIL
 	if (opt & 0x8) header_threshhold = INT_MAX; // -q
-	if (opt & 0x10) sleep_period = xatou(str_s); // -s
 	if (opt & 0x20) header_threshhold = 0; // -v
 #endif
 	argc -= optind;
@@ -133,8 +128,7 @@ int tail_main(int argc, char **argv)
 
 	/* open all the files */
 	fds = xmalloc(sizeof(int) * (argc + 1));
-	nfiles = i = 0;
-	if (argc == 0) {
+	if (!argv[0]) {
 		struct stat statbuf;
 
 		if (!fstat(STDIN_FILENO, &statbuf) && S_ISFIFO(statbuf.st_mode)) {
@@ -142,13 +136,14 @@ int tail_main(int argc, char **argv)
 		}
 		*argv = (char *) bb_msg_standard_input;
 	}
+	nfiles = i = 0;
 	do {
-		FILE* fil = fopen_or_warn_stdin(argv[i]);
-		if (!fil) {
+		int fd = open_or_warn_stdin(argv[i]);
+		if (fd < 0) {
 			G.status = EXIT_FAILURE;
 			continue;
 		}
-		fds[nfiles] = fileno(fil);
+		fds[nfiles] = fd;
 		argv[nfiles++] = argv[i];
 	} while (++i < argc);
 

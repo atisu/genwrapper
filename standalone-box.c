@@ -29,6 +29,9 @@ int main(int argc, char **argv)
 	const char *exec_path = NULL;
 	char *slash;
 
+ 	if (getenv("GIT_TRACE")) {
+		fprintf(stderr, "argv[0]=%s\n", argv[0]);
+	}
 	/*
 	 * Take the basename of argv[0] as the command
 	 * name, and the dirname as the default exec_path
@@ -59,8 +62,14 @@ int main(int argc, char **argv)
 		}
 		argv[0] = slash;
 	}
-	bb_busybox_exec_path = strdup(argv[0]);
-	if (!bb_busybox_exec_path) die("Could not determine my name");
+	if(exec_path) {
+		slash = xzalloc(strlen(exec_path) + strlen(argv[0]) + 2);
+		strcpy(slash, exec_path);
+		slash[strlen(exec_path)] = DIRECTORY_SEPARATOR;
+		strcat(slash, argv[0]);
+		*(char **)&bb_busybox_exec_path = slash;
+		if (!bb_busybox_exec_path) die("Could not determine my exec name");
+	}
 
 	/*
 	 * We search for git commands in the following order:
@@ -69,17 +78,18 @@ int main(int argc, char **argv)
 	 *    in $0
 	 *  - the regular PATH.
 	 */
-	if (exec_path)
+/*	if (exec_path)
 		prepend_to_path(exec_path, strlen(exec_path));
-/*	exec_path = git_exec_path();
+	exec_path = git_exec_path();
 	prepend_to_path(exec_path, strlen(exec_path)); */
 
-	if (getenv("GIT_TRACE")) {
+ 	if (getenv("GIT_TRACE")) {
 		char *argv_str = sq_quote_argv((const char**)argv, -1);
 
-		fprintf(stderr, "exec_path=%s, basename=%s\n", exec_path, bb_busybox_exec_path);
+		fprintf(stderr, "exec_path=%s, basename=%s\n", exec_path, argv[0]);
+		fprintf(stderr, "bb_busybox_exec_path=%s\n", bb_busybox_exec_path);
 		fprintf(stderr, "git-box:%s\n", argv_str);
 		free(argv_str);
 	}
-	return lbb_main(argc, argv);
+	return lbb_main(argv);
 }

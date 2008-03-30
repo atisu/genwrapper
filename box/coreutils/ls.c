@@ -580,7 +580,11 @@ static int list_single(struct dnode *dn)
 			break;
 		case LIST_BLOCKS:
 #ifdef __MINGW32__
-			column += printf("%4"OFF_FMT"d ", 0);
+#define BLKSZ  512
+			column += printf("%4"OFF_FMT"d ",
+				(off_t)(dn->dstat.st_size / BLKSZ +
+				(dn->dstat.st_size % BLKSZ ? 1 : 0)));
+#undef BLKSZ
 #else
 			column += printf("%4"OFF_FMT"d ", (off_t) dn->dstat.st_blocks >> 1);
 #endif
@@ -807,8 +811,6 @@ int ls_main(int argc, char **argv)
 	int ac;
 	int i;
 	char **av;
-	USE_FEATURE_AUTOWIDTH(char *tabstops_str = NULL;)
-	USE_FEATURE_AUTOWIDTH(char *terminal_width_str = NULL;)
 	USE_FEATURE_LS_COLOR(char *color_opt;)
 
 #if ENABLE_FEATURE_LS_TIMESTAMPS
@@ -828,12 +830,9 @@ int ls_main(int argc, char **argv)
 	/* process options */
 	USE_FEATURE_LS_COLOR(applet_long_options = ls_color_opt;)
 #if ENABLE_FEATURE_AUTOWIDTH
-	opt = getopt32(argv, ls_options, &tabstops_str, &terminal_width_str
+	opt_complementary = "T+:w+"; /* -T N, -w N */
+	opt = getopt32(argv, ls_options, &tabstops, &terminal_width
 				USE_FEATURE_LS_COLOR(, &color_opt));
-	if (tabstops_str)
-		tabstops = xatou(tabstops_str);
-	if (terminal_width_str)
-		terminal_width = xatou(terminal_width_str);
 #else
 	opt = getopt32(argv, ls_options USE_FEATURE_LS_COLOR(, &color_opt));
 #endif

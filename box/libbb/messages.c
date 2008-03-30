@@ -17,7 +17,7 @@
 #define BB_EXTRA_VERSION BB_BT
 #endif
 
-#define BANNER "GitBox v" BB_VER " (" BB_EXTRA_VERSION ")"
+#define BANNER "BusyBox v" BB_VER " (" BB_EXTRA_VERSION ")"
 
 const char bb_banner[] ALIGN1 = BANNER;
 
@@ -47,8 +47,6 @@ const char bb_dev_null[] ALIGN1 = "nul";
 #else
 const char bb_dev_null[] ALIGN1 = "/dev/null";
 #endif
-/* In GitBox bb_busybox_exec_path is a global variable */
-char *bb_busybox_exec_path;
 const char bb_default_login_shell[] ALIGN1 = LIBBB_DEFAULT_LOGIN_SHELL;
 /* util-linux manpage says /sbin:/bin:/usr/sbin:/usr/bin,
  * but I want to save a few bytes here. Check libbb.h before changing! */
@@ -78,11 +76,3 @@ const char bb_path_wtmp_file[] ALIGN1 =
  * Since gcc insists on aligning struct global's members, it would be a pity
  * (and an alignment fault on some CPUs) to mess it up. */
 char bb_common_bufsiz1[COMMON_BUFSIZE] __attribute__(( aligned(sizeof(long long)) ));
-
-struct globals;
-#if !defined (__APPLE__)
-/* Make it reside in R/W memory: */
-struct globals *const ptr_to_globals __attribute__ ((section (".data")));
-#else
-struct globals *const ptr_to_globals;
-#endif

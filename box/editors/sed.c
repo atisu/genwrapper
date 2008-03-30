@@ -301,7 +301,7 @@ static int get_address(const char *my_str, int *linenum, regex_t ** regex)
 }
 
 /* Grab a filename.  Whitespace at start is skipped, then goes to EOL. */
-static int parse_file_cmd(sed_cmd_t *sed_cmd, const char *filecmdstr, char **retval)
+static int parse_file_cmd(/*sed_cmd_t *sed_cmd,*/ const char *filecmdstr, char **retval)
 {
 	int start = 0, idx, hack = 0;
 
@@ -375,7 +375,7 @@ static int parse_subst_cmd(sed_cmd_t *sed_cmd, const char *substr)
 		case 'w':
 		{
 			char *temp;
-			idx += parse_file_cmd(sed_cmd, substr+idx, &temp);
+			idx += parse_file_cmd(/*sed_cmd,*/ substr+idx, &temp);
 			break;
 		}
 		/* Ignore case (gnu exension) */
@@ -436,7 +436,7 @@ static const char *parse_cmd_args(sed_cmd_t *sed_cmd, const char *cmdstr)
 	} else if (strchr("rw", sed_cmd->cmd)) {
 		if (sed_cmd->end_line || sed_cmd->end_match)
 			bb_error_msg_and_die("command only uses one address");
-		cmdstr += parse_file_cmd(sed_cmd, cmdstr, &sed_cmd->string);
+		cmdstr += parse_file_cmd(/*sed_cmd,*/ cmdstr, &sed_cmd->string);
 		if (sed_cmd->cmd == 'w') {
 			sed_cmd->sw_file = xfopen(sed_cmd->string, "w");
 			sed_cmd->sw_last_char = '\n';
@@ -865,7 +865,7 @@ static void process_files(void)
 	next_line = get_next_line(&next_gets_char);
 
 	/* go through every line in each file */
-again:
+ again:
 	substituted = 0;
 
 	/* Advance to next line.  Stop if out of lines. */
@@ -877,7 +877,7 @@ again:
 	 * the '$' address */
 	next_line = get_next_line(&next_gets_char);
 	linenum++;
-restart:
+ restart:
 	/* for every line, go through all the commands */
 	for (sed_cmd = G.sed_cmd_head.next; sed_cmd; sed_cmd = sed_cmd->next) {
 		int old_matched, matched;
@@ -1053,6 +1053,7 @@ restart:
 					pattern_space = next_line;
 					last_gets_char = next_gets_char;
 					next_line = get_next_line(&next_gets_char);
+					substituted = 0;
 					linenum++;
 					break;
 				}
@@ -1230,7 +1231,7 @@ static void add_cmd_block(char *cmdstr)
 }
 
 int sed_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
-int sed_main(int argc, char **argv)
+int sed_main(int argc ATTRIBUTE_UNUSED, char **argv)
 {
 	enum {
 		OPT_in_place = 1 << 0,
@@ -1245,7 +1246,7 @@ int sed_main(int argc, char **argv)
 	if (ENABLE_FEATURE_CLEAN_UP) atexit(sed_free_and_close_stuff);
 
 	/* Lie to autoconf when it starts asking stupid questions. */
-	if (argc == 2 && !strcmp(argv[1], "--version")) {
+	if (argv[1] && !strcmp(argv[1], "--version")) {
 		puts("This is not GNU sed version 4.0");
 		return 0;
 	}
@@ -1256,7 +1257,7 @@ int sed_main(int argc, char **argv)
 	                    "nn"; /* count -n */
 	opt = getopt32(argv, "irne:f:", &opt_e, &opt_f,
 			    &G.be_quiet); /* counter for -n */
-	argc -= optind;
+	//argc -= optind;
 	argv += optind;
 	if (opt & OPT_in_place) { // -i
 		atexit(cleanup_outname);
@@ -1282,10 +1283,9 @@ int sed_main(int argc, char **argv)
 	}
 	/* if we didn't get a pattern from -e or -f, use argv[0] */
 	if (!(opt & 0x18)) {
-		if (!argc)
+		if (!*argv)
 			bb_show_usage();
 		add_cmd_block(*argv++);
-		argc--;
 	}
 	/* Flush any unfinished commands. */
 	add_cmd("");
@@ -1305,7 +1305,7 @@ int sed_main(int argc, char **argv)
 		int i;
 		FILE *file;
 
-		for (i = 0; i < argc; i++) {
+		for (i = 0; argv[i]; i++) {
 			struct stat statbuf;
 			int nonstdoutfd;
 

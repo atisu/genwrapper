@@ -10,11 +10,13 @@
 #define ARCHIVE_NOPRESERVE_OWN          32
 #define ARCHIVE_NOPRESERVE_PERM         64
 
-//#include "libbb.h"
-
-typedef struct file_headers_s {
+typedef struct file_header_t {
 	char *name;
-	char *link_name;
+	char *link_target;
+#if ENABLE_FEATURE_TAR_UNAME_GNAME
+	char *uname; 
+	char *gname;
+#endif
 	off_t size;
 	uid_t uid;
 	gid_t gid;
@@ -23,9 +25,9 @@ typedef struct file_headers_s {
 	dev_t device;
 } file_header_t;
 
-typedef struct archive_handle_s {
+typedef struct archive_handle_t {
 	/* define if the header and data component should be processed */
-	char (*filter)(struct archive_handle_s *);
+	char (*filter)(struct archive_handle_t *);
 	llist_t *accept;
 	/* List of files that have been rejected */
 	llist_t *reject;
@@ -39,13 +41,13 @@ typedef struct archive_handle_s {
 	void (*action_header)(const file_header_t *);
 
 	/* process the data component, e.g. extract to filesystem */
-	void (*action_data)(struct archive_handle_s *);
+	void (*action_data)(struct archive_handle_t *);
 
 	/* How to process any sub archive, e.g. get_header_tar_gz */
-	char (*action_data_subarchive)(struct archive_handle_s *);
+	char (*action_data_subarchive)(struct archive_handle_t *);
 
 	/* Contains the handle to a sub archive */
-	struct archive_handle_s *sub_archive;
+	struct archive_handle_t *sub_archive;
 
 	/* The raw stream as read from disk or stdin */
 	int src_fd;
@@ -54,7 +56,7 @@ typedef struct archive_handle_s {
 	off_t offset;
 
 	/* Function that skips data: read_by_char or read_by_skip */
-	void (*seek)(const struct archive_handle_s *archive_handle, const unsigned int amount);
+	void (*seek)(const struct archive_handle_t *archive_handle, const unsigned amount);
 
 	/* Temporary storage */
 	char *buffer;
@@ -83,8 +85,6 @@ extern void header_skip(const file_header_t *file_header);
 extern void header_list(const file_header_t *file_header);
 extern void header_verbose_list(const file_header_t *file_header);
 
-extern void check_header_gzip_or_die(int src_fd);
-
 extern char get_header_ar(archive_handle_t *archive_handle);
 extern char get_header_cpio(archive_handle_t *archive_handle);
 extern char get_header_tar(archive_handle_t *archive_handle);
@@ -92,16 +92,15 @@ extern char get_header_tar_bz2(archive_handle_t *archive_handle);
 extern char get_header_tar_lzma(archive_handle_t *archive_handle);
 extern char get_header_tar_gz(archive_handle_t *archive_handle);
 
-extern void seek_by_jump(const archive_handle_t *archive_handle, const unsigned int amount);
-extern void seek_by_read(const archive_handle_t *archive_handle, const unsigned int amount);
+extern void seek_by_jump(const archive_handle_t *archive_handle, unsigned amount);
+extern void seek_by_read(const archive_handle_t *archive_handle, unsigned amount);
 
 extern ssize_t archive_xread_all_eof(archive_handle_t *archive_handle, unsigned char *buf, size_t count);
 
-extern void data_align(archive_handle_t *archive_handle, const unsigned short boundary);
+extern void data_align(archive_handle_t *archive_handle, unsigned boundary);
 extern const llist_t *find_list_entry(const llist_t *list, const char *filename);
 extern const llist_t *find_list_entry2(const llist_t *list, const char *filename);
 
-extern USE_DESKTOP(long long) int uncompressStream(int src_fd, int dst_fd);
 /* A bit of bunzip2 internals are exposed for compressed help support: */
 typedef struct bunzip_data bunzip_data;
 int start_bunzip(bunzip_data **bdp, int in_fd, const unsigned char *inbuf, int len);
@@ -113,11 +112,18 @@ typedef struct inflate_unzip_result {
 	uint32_t crc;
 } inflate_unzip_result;
 
-extern USE_DESKTOP(long long) int inflate_unzip(inflate_unzip_result *res, unsigned bufsize, int in, int out);
-extern USE_DESKTOP(long long) int inflate_gunzip(int in, int out);
-extern USE_DESKTOP(long long) int unlzma(int src_fd, int dst_fd);
+extern USE_DESKTOP(long long) int unpack_bz2_stream(int src_fd, int dst_fd);
+extern USE_DESKTOP(long long) int inflate_unzip(inflate_unzip_result *res, off_t compr_size, int src_fd, int dst_fd);
+extern USE_DESKTOP(long long) int unpack_gz_stream(int src_fd, int dst_fd);
+extern USE_DESKTOP(long long) int unpack_lzma_stream(int src_fd, int dst_fd);
 
+#if BB_MMU
 extern int open_transformer(int src_fd,
 	USE_DESKTOP(long long) int (*transformer)(int src_fd, int dst_fd));
+#define open_transformer(src_fd, transformer, transform_prog) open_transformer(src_fd, transformer)
+#else
+extern int open_transformer(int src_fd, const char *transform_prog);
+#define open_transformer(src_fd, transformer, transform_prog) open_transformer(src_fd, transform_prog)
+#endif
 
 #endif

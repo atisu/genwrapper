@@ -4,7 +4,7 @@
  *
  * Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
  * Copyright (C) 2006 Rob Landley
- * Copyright (C) 2006 Denis Vlasenko
+ * Copyright (C) 2006 Denys Vlasenko
  *
  * Licensed under GPL version 2, see file LICENSE in this tarball for details.
  */
@@ -79,7 +79,7 @@ char * xstrdup(const char *s)
 
 // Die if we can't allocate n+1 bytes (space for the null terminator) and copy
 // the (possibly truncated to length n) string into it.
-char * xstrndup(const char *s, int n)
+char *xstrndup(const char *s, int n)
 {
 	int m;
 	char *t;
