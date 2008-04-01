@@ -13,7 +13,7 @@
 
 
 #include <sys/stat.h>
-#ifndef __MINGW32__
+#ifndef _WIN32
 #include <assert.h>
 
 #include "libbb.h"

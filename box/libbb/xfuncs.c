@@ -518,7 +518,7 @@ char *xasprintf(const char *format, ...)
 }
 
 /* If we will ever meet a libc which hasn't [f]dprintf... */
-#if (defined __MINGW32__ || defined __APPLE__)
+#if (defined _WIN32 || defined __APPLE__)
 int fdprintf(int fd, const char *format, ...)
 {
 	va_list p;

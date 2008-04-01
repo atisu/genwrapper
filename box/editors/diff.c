@@ -961,7 +961,7 @@ static unsigned diffreg(char *ofile1, char *ofile2, int flags)
 	if (LONE_DASH(file1) && LONE_DASH(file2))
 		goto closem;
 
-#ifdef __MINGW32__
+#ifdef _WIN32
 	if ( !strcmp(ofile1, "/dev/null") )
 		flags |= D_EMPTY1;
 

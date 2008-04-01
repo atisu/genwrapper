@@ -41,7 +41,7 @@ int main(int argc, char **argv)
 	slash = strrchr(argv[0], DIRECTORY_SEPARATOR);
 	if(slash) {
 		*slash++ = '\0';
-#ifdef __MINGW32__
+#ifdef _WIN32
 		if (argv[0][1] == ':') {
 #else
 		if (argv[0][0] == '/') {

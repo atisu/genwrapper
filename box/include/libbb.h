@@ -24,7 +24,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <string.h>
-#ifndef __MINGW32__
+#ifndef _WIN32
 #include <sys/poll.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -33,7 +33,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#ifndef __MINGW32__
+#ifndef _WIN32
 #include <sys/wait.h>
 #include <termios.h>
 #endif
@@ -513,7 +513,7 @@ int bb_pstrcmp(const void *a, const void *b);
 void qsort_string_vector(char **sv, unsigned count);
 
 char *utoa(unsigned n);
-#ifdef __MINGW32__
+#ifdef _WIN32
 #define itoa bb_itoa
 #else
 char *itoa(int n);

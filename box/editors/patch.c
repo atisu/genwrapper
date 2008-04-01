@@ -118,7 +118,7 @@ int patch_main(int argc ATTRIBUTE_UNUSED, char **argv)
 
 		/* Extract the filename used before the patch was generated */
 		original_filename = extract_filename(patch_line, patch_level);
-#ifdef __MINGW32__
+#ifdef _WIN32
 		if (!strcmp(original_filename, "/dev/null"))
 			original_filename = "nul";
 #endif

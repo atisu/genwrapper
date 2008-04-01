@@ -95,7 +95,7 @@ void data_extract_all(archive_handle_t *archive_handle)
 					file_header->link_target);
 			}
 			break;
-#ifndef __MINGW32__
+#ifndef _WIN32
 		case S_IFSOCK:
 		case S_IFBLK:
 		case S_IFCHR:
@@ -113,7 +113,7 @@ void data_extract_all(archive_handle_t *archive_handle)
 		}
 	}
 
-#ifndef __MINGW32__
+#ifndef _WIN32
 	if (!(archive_handle->flags & ARCHIVE_NOPRESERVE_OWN)) {
 #if ENABLE_FEATURE_TAR_UNAME_GNAME
 		uid_t uid = file_header->uid;

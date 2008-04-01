@@ -105,30 +105,32 @@ all:
 # Define USE_STDEV below if you want git to care about the underlying device
 # change being considered an inode change from the update-cache perspective.
 #
-# Define ASCIIDOC8 if you want to format documentation with AsciiDoc 8
-#
 
-uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
-uname_M := $(shell sh -c 'uname -m 2>/dev/null || echo not')
-uname_O := $(shell sh -c 'uname -o 2>/dev/null || echo not')
-uname_R := $(shell sh -c 'uname -r 2>/dev/null || echo not')
-uname_P := $(shell sh -c 'uname -p 2>/dev/null || echo not')
+HOST := $(shell ./config.guess)
+TARGET := $(shell ./config.guess)
 
-ifneq (,$(findstring MINGW,$(uname_S)))
-	MINGW=YesPlease
-endif
 # CFLAGS and LDFLAGS are for the users to override from the command line.
-
 CFLAGS = -g -O2 -Wall
 LDFLAGS =
 ALL_CFLAGS = $(CFLAGS)
 ALL_LDFLAGS = $(LDFLAGS)
-STRIP ?= strip
+
+HOST_CC = gcc
+ifeq ($(HOST),$(TARGET))
+	CC = $(HOST_CC)
+	AR = ar
+	STRIP = strip
+else
+	CC = $(TARGET)-gcc
+	AR = $(TARGET)-ar
+	STRIP = $(TARGET)-strip
+endif
+RM = rm -f
 
 BOINC=no
 
 ifeq ($(BOINC),yes)
-ifdef MINGW
+ifeq ($(findstring mingw,$(TARGET)),FIND)
 OPENSSLDIR=C:/Projects/genwrapper/trunk/win32/openssl/
 ALL_LDFLAGS +=-LC:/Projects/boinc_mingw/ -lboinc -lstdc++ -lwinmm
 ALL_CFLAGS += -IC:/Projects/boinc_mingw/include/ -DBOINC 
@@ -139,33 +141,6 @@ ALL_LDFLAGS += -L$(BOINC_HOME)/api -lboinc_api -L$(BOINC_HOME)/lib -lboinc -lstd
 endif
 endif
 
-prefix = $(HOME)
-bindir = $(prefix)/bin
-gitexecdir = $(bindir)
-sharedir = $(prefix)/share
-template_dir = $(sharedir)/git-core/templates
-ifeq ($(prefix),/usr)
-sysconfdir = /etc
-else
-sysconfdir = $(prefix)/etc
-endif
-ETC_GITCONFIG = $(sysconfdir)/gitconfig
-# DESTDIR=
-
-export prefix bindir gitexecdir sharedir template_dir sysconfdir
-
-CC = gcc
-AR = ar
-RM = rm -f
-TAR = tar
-INSTALL = install
-
-# sparse is architecture-neutral, which means that we need to tell it
-# explicitly what architecture to check for. Fix this up for yours..
-#SPARSE_FLAGS = -D__BIG_ENDIAN__ -D__powerpc__
-
-GITBOX=YesPlease
-
 ### --- END CONFIGURATION SECTION ---
 
 # Those must not be GNU-specific; they are shared with perl/ which may
@@ -174,18 +149,13 @@ GITBOX=YesPlease
 BASIC_CFLAGS =
 BASIC_LDFLAGS =
 
-PROGRAMS = gitbox $(EXTRA_PROGRAMS)
+PROGRAMS = gitbox$X $(EXTRA_PROGRAMS)
 
 # Empty...
 EXTRA_PROGRAMS =
 
-# what 'all' will build and 'install' will install, in gitexecdir
+# what 'all' will build and 'install' will install
 ALL_PROGRAMS = $(PROGRAMS)
-
-# Set paths to tools early so that they can be used for version tests.
-ifndef SHELL_PATH
-	SHELL_PATH = /bin/sh
-endif
 
 GIT_OBJS = standalone-box.o ctype.o quote.o usage.o \
 	 run-command.o exec_cmd.o spawn-pipe.o
@@ -344,7 +314,7 @@ BOX_CFLAGS = -Ibox/include -Ibox/libbb \
 BOX_H := $(patsubst %.h,box/include/%.h,$(BOX_H))
 BOX_OBJS := $(patsubst %.o,box/%.o,$(BOX_OBJS))
 
-EXTLIBS = -lz
+EXTLIBS =
 
 #
 # Platform specific tweaks
@@ -354,37 +324,40 @@ EXTLIBS = -lz
 # because maintaining the nesting to match is a pain.  If
 # we had "elif" things would have been much nicer...
 
-ifeq ($(uname_S),Darwin)
+ifeq ($(findstring darwin,$(TARGET)),darwin)
 	NEEDS_SSL_WITH_CRYPTO = YesPlease
 	NEEDS_LIBICONV = YesPlease
 	OLD_ICONV = UnfortunatelyYes
 	BASIC_CFLAGS += -fnested-functions
+
+	ifndef NO_FINK
+		ifeq ($(shell test -d /sw/lib && echo y),y)
+			BASIC_CFLAGS += -I/sw/include
+			BASIC_LDFLAGS += -L/sw/lib
+		endif
+	endif
+	ifndef NO_DARWIN_PORTS
+		ifeq ($(shell test -d /opt/local/lib && echo y),y)
+			BASIC_CFLAGS += -I/opt/local/include
+			BASIC_LDFLAGS += -L/opt/local/lib
+		endif
+	endif
 endif
-ifeq ($(uname_S),SunOS)
+ifeq ($(findstring solaris,$(TARGET)),solaris)
 	NEEDS_SOCKET = YesPlease
 	NEEDS_NSL = YesPlease
-	SHELL_PATH = /bin/bash
 	NO_STRCASESTR = YesPlease
 	NO_HSTRERROR = YesPlease
-	ifeq ($(uname_R),5.8)
+	NO_UNSETENV = YesPlease
+	NO_SETENV = YesPlease
+	NO_C99_FORMAT = YesPlease
+	NO_STRTOUMAX = YesPlease
+	ifeq ($(shell -c 'uname -s 2>/dev/null || echo not'),5.8)
 		NEEDS_LIBICONV = YesPlease
-		NO_UNSETENV = YesPlease
-		NO_SETENV = YesPlease
-		NO_C99_FORMAT = YesPlease
-		NO_STRTOUMAX = YesPlease
 	endif
-	ifeq ($(uname_R),5.9)
-		NO_UNSETENV = YesPlease
-		NO_SETENV = YesPlease
-		NO_C99_FORMAT = YesPlease
-		NO_STRTOUMAX = YesPlease
-	endif
-	INSTALL = ginstall
-	TAR = gtar
 	BASIC_CFLAGS += -D__EXTENSIONS__
 endif
-ifeq ($(uname_O),Cygwin)
-ifndef MINGW
+ifeq ($(findstring cygwin,$(TARGET)),cygwin)
 	NO_D_TYPE_IN_DIRENT = YesPlease
 	NO_D_INO_IN_DIRENT = YesPlease
 	NO_STRCASESTR = YesPlease
@@ -399,19 +372,18 @@ ifndef MINGW
 	NO_IPV6 = YesPlease
 	X = .exe
 endif
-endif
-ifeq ($(uname_S),FreeBSD)
+ifeq ($(findstring freebsd,$(TARGET)),freebsd)
 	NEEDS_LIBICONV = YesPlease
 	BASIC_CFLAGS += -I/usr/local/include
 	BASIC_LDFLAGS += -L/usr/local/lib
 endif
-ifeq ($(uname_S),OpenBSD)
+ifeq ($(findstring openbsd,$(TARGET)),openbsd)
 	NO_STRCASESTR = YesPlease
 	NEEDS_LIBICONV = YesPlease
 	BASIC_CFLAGS += -I/usr/local/include
 	BASIC_LDFLAGS += -L/usr/local/lib
 endif
-ifeq ($(uname_S),NetBSD)
+ifeq ($(findstring netbsd,$(TARGET)),netbsd)
 	ifeq ($(shell expr "$(uname_R)" : '[01]\.'),2)
 		NEEDS_LIBICONV = YesPlease
 	endif
@@ -419,24 +391,20 @@ ifeq ($(uname_S),NetBSD)
 	BASIC_LDFLAGS += -L/usr/pkg/lib
 	ALL_LDFLAGS += -Wl,-rpath,/usr/pkg/lib
 endif
-ifeq ($(uname_S),AIX)
+ifeq ($(findstring ibm-aix,$(TARGET)),ibm-aix)
 	NO_STRCASESTR=YesPlease
 	NEEDS_LIBICONV=YesPlease
 endif
-ifeq ($(uname_S),IRIX64)
+ifeq ($(findstring sgi-irix,$(TARGET)),sgi-irix)
 	NO_IPV6=YesPlease
 	NO_SETENV=YesPlease
 	NO_STRCASESTR=YesPlease
 	NO_SOCKADDR_STORAGE=YesPlease
-	SHELL_PATH=/usr/gnu/bin/bash
 	BASIC_CFLAGS += -DPATH_MAX=1024
 	# for now, build 32-bit version
 	BASIC_LDFLAGS += -L/usr/lib32
 endif
-ifdef MINGW
-ifneq (,$(findstring MINGW,$(uname_S)))
-	SHELL_PATH = $(shell cd /bin && pwd -W)/sh
-endif
+ifeq ($(findstring mingw,$(TARGET)),mingw)
 	NO_MMAP=YesPlease
 	NO_PREAD=YesPlease
 	NO_OPENSSL=YesPlease
@@ -457,30 +425,6 @@ endif
 	EXTLIBS += -lws2_32
 	X = .exe
 	NOEXECTEMPL = .noexec
-	template_dir = ../share/git-core/templates/
-	ETC_GITCONFIG = ../etc/gitconfig
-	SCRIPT_SH += cpio.sh
-endif
-ifneq (,$(findstring arm,$(uname_M)))
-	ARM_SHA1 = YesPlease
-endif
-
--include config.mak.autogen
--include config.mak
-
-ifeq ($(uname_S),Darwin)
-	ifndef NO_FINK
-		ifeq ($(shell test -d /sw/lib && echo y),y)
-			BASIC_CFLAGS += -I/sw/include
-			BASIC_LDFLAGS += -L/sw/lib
-		endif
-	endif
-	ifndef NO_DARWIN_PORTS
-		ifeq ($(shell test -d /opt/local/lib && echo y),y)
-			BASIC_CFLAGS += -I/opt/local/include
-			BASIC_LDFLAGS += -L/opt/local/lib
-		endif
-	endif
 endif
 
 ifdef NO_R_TO_GCC_LINKER
@@ -532,9 +476,7 @@ ifdef NEEDS_LIBICONV
 	EXTLIBS += $(ICONV_LINK) -liconv
 endif
 ifdef NEEDS_SOCKET
-ifndef MINGW
 	EXTLIBS += -lsocket
-endif
 endif
 ifdef NEEDS_NSL
 	EXTLIBS += -lnsl
@@ -638,22 +580,9 @@ ifndef V
 endif
 endif
 
-ifdef ASCIIDOC8
-	export ASCIIDOC8
-endif
-
 # Shell quote (do not use $(call) to accommodate ancient setups);
 
 SHA1_HEADER_SQ = $(subst ','\'',$(SHA1_HEADER))
-ETC_GITCONFIG_SQ = $(subst ','\'',$(ETC_GITCONFIG))
-
-DESTDIR_SQ = $(subst ','\'',$(DESTDIR))
-bindir_SQ = $(subst ','\'',$(bindir))
-gitexecdir_SQ = $(subst ','\'',$(gitexecdir))
-template_dir_SQ = $(subst ','\'',$(template_dir))
-prefix_SQ = $(subst ','\'',$(prefix))
-
-SHELL_PATH_SQ = $(subst ','\'',$(SHELL_PATH))
 
 LIBS = $(EXTLIBS)
 
@@ -663,20 +592,8 @@ GIT_OBJS += $(COMPAT_OBJS)
 ALL_CFLAGS += $(BASIC_CFLAGS)
 ALL_LDFLAGS += $(BASIC_LDFLAGS)
 
-ifdef MINGW
-ifdef NO_GITBOX
-ALL_CFLAGS += -DNO_GITBOX
-else
-ALL_CFLAGS += $(BOX_CFLAGS)
+ALL_CFLAGS += $(BOX_CFLAGS) -std=gnu99 -D_GNU_SOURCE
 ALL_LDFLAGS += $(BOX_LDFLAGS)
-endif
-endif
-
-ifdef GITBOX
-ALL_CFLAGS += $(BOX_CFLAGS) -std=gnu99 -D_GNU_SOURCE -DGITBOX
-ALL_LDFLAGS += $(BOX_LDFLAGS) -lm
-endif
-export TAR INSTALL DESTDIR SHELL_PATH
 
 
 ### Build rules
@@ -700,14 +617,10 @@ configure: configure.ac
 %.o: %.S
 	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) $<
 
-exec_cmd.o: exec_cmd.c 
-	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) '-DGIT_EXEC_PATH="$(gitexecdir_SQ)"' $<
-
-config.o: config.c 
-	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) -DETC_GITCONFIG='"$(ETC_GITCONFIG_SQ)"' $<
-
+box/applets/applet_tables.o: box/applets/applet_tables.c box/include/autoconf.h box/include/busybox.h
+	$(QUIET_CC)$(HOST_CC) -o $*.o -c $(ALL_CFLAGS) $<
 box/applets/applet_tables: box/applets/applet_tables.o
-	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $^
+	$(QUIET_LINK)$(HOST_CC) -o $@ $^
 
 box/include/applet_tables.h: box/include/applets.h box/applets/applet_tables
 	$(QUIET_GEN)box/applets/applet_tables box/include/applet_tables.h
@@ -720,7 +633,7 @@ box/shell/ash.o: box/shell/ash_fork.c box/shell/ash_fork.h
 $(BOX_FILE): $(BOX_OBJS)
 	$(QUIET_AR)rm -f $@ && $(AR) rcs $@ $(BOX_OBJS)
 
-gitbox: $(GIT_OBJS) $(BOX_FILE)
+gitbox$X: $(GIT_OBJS) $(BOX_FILE)
 	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $^ $(ALL_LDFLAGS) $(LIBS)
 
 
@@ -733,6 +646,6 @@ clean:
 	$(RM) *.spec *.pyc *.pyo */*.pyc */*.pyo common-cmds.h TAGS tags
 	$(RM) -r autom4te.cache
 	$(RM) configure config.log config.mak.autogen config.mak.append config.status config.cache
-	$(RM) *~
+	find . -name "*~" -exec $(RM) {} \;
 
 .PHONY: all install clean strip

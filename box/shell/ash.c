@@ -51,7 +51,7 @@
 
 #define JOBS ENABLE_ASH_JOB_CONTROL
 
-#ifndef __MINGW32__
+#ifndef _WIN32
 
 #if DEBUG
 #ifndef _GNU_SOURCE
@@ -60,7 +60,7 @@
 #endif
 
 #include <paths.h>
-#endif /* !__MINGW32__ */
+#endif /* !_WIN32 */
 
 #include <setjmp.h>
 #include <fnmatch.h>
@@ -72,7 +72,7 @@
 #error "Do not even bother, ash will not run on uClinux"
 #endif
 
-#ifdef __MINGW32__
+#ifdef _WIN32
 #include "run-command.h"
 #include "ash_fork.h"
 #endif
@@ -283,14 +283,14 @@ static void
 raise_interrupt(void)
 {
 	int i;
-#ifndef __MINGW32__
+#ifndef _WIN32
 	sigset_t mask;
 #endif
 
 	intpending = 0;
 	/* Signal is not automatically unmasked after it is raised,
 	 * do it ourself - unmask all signals */
-#ifndef __MINGW32__
+#ifndef _WIN32
 	sigfillset(&mask);
 	sigprocmask(SIG_UNBLOCK, &mask, 0);
 #endif
@@ -1951,7 +1951,7 @@ initvar(void)
 #if ENABLE_FEATURE_EDITING && ENABLE_FEATURE_EDITING_FANCY_PROMPT
 	vps1.text = "PS1=\\w \\$ ";
 #else
-#ifndef __MINGW32__
+#ifndef _WIN32
 	if (!geteuid())
 		vps1.text = "PS1=# ";
 #endif
@@ -2366,7 +2366,7 @@ updatepwd(const char *dir)
 	char *p;
 	char *cdcomppath;
 	const char *lim;
-#ifdef __MINGW32__
+#ifdef _WIN32
 	smallint abspath = (*dir && dir[1] == ':');
 #else
 	smallint abspath = (*dir == '/');
@@ -2387,7 +2387,7 @@ updatepwd(const char *dir)
 		if (new > lim && *lim == '/')
 			lim++;
 	} else {
-#ifdef __MINGW32__
+#ifdef _WIN32
 		USTPUTC(*dir, new);
 		USTPUTC(':', new);
 		cdcomppath += 2;
@@ -3277,7 +3277,7 @@ static pid_t backgndpid;        /* pid of last background process */
 static smallint job_warning;    /* user was warned about stopped jobs (can be 2, 1 or 0). */
 
 static struct job *makejob(/*union node *,*/ int);
-#ifndef __MINGW32__
+#ifndef _WIN32
 #if !JOBS
 #define forkshell(job, node, mode) forkshell(job, mode)
 #endif
@@ -3302,7 +3302,7 @@ setsignal(int signo)
 {
 	int action;
 	char *t, tsig;
-#ifndef __MINGW32__
+#ifndef _WIN32
 	struct sigaction act;
 #endif
 
@@ -3318,7 +3318,7 @@ setsignal(int signo)
 			if (iflag || minusc || sflag == 0)
 				action = S_CATCH;
 			break;
-#ifndef __MINGW32__
+#ifndef _WIN32
 		case SIGQUIT:
 #if DEBUG
 			if (debug)
@@ -3342,7 +3342,7 @@ setsignal(int signo)
 
 	t = &sigmode[signo - 1];
 	tsig = *t;
-#ifndef __MINGW32__
+#ifndef _WIN32
 	if (tsig == 0) {
 		/*
 		 * current setting unknown
@@ -3761,7 +3761,7 @@ sprint_status(char *s, int status, int sigonly)
 			st = WTERMSIG(status);
 		if (sigonly) {
 			if (st == SIGINT
-#ifndef __MINGW32__
+#ifndef _WIN32
 			    || st == SIGPIPE
 #endif
 			   )
@@ -3773,7 +3773,7 @@ sprint_status(char *s, int status, int sigonly)
 		}
 		st &= 0x7f;
 		col = fmtstr(s, 32, strsignal(st));
-#ifndef __MINGW32__
+#ifndef _WIN32
 		if (WCOREDUMP(status)) {
 			col += fmtstr(s + col, 16, " (core dumped)");
 		}
@@ -3817,7 +3817,7 @@ sprint_status(char *s, int status, int sigonly)
  * (as opposed to running a builtin command or just typing return),
  * and the jobs command may give out of date information.
  */
-#ifndef __MINGW32__
+#ifndef _WIN32
 static int
 waitproc(int wait_flags, int *status)
 {
@@ -4048,7 +4048,7 @@ jobscmd(int argc ATTRIBUTE_UNUSED, char **argv)
 static int
 getstatus(struct job *job)
 {
-#ifdef __MINGW32__
+#ifdef _WIN32
 	fprintf(stderr,"getstatus unimplemented\n");
 	return 0;
 #else
@@ -4078,7 +4078,7 @@ getstatus(struct job *job)
 #endif
 }
 
-#ifndef __MINGW32__
+#ifndef _WIN32
 static int
 waitcmd(int argc ATTRIBUTE_UNUSED, char **argv)
 {
@@ -4545,7 +4545,7 @@ clear_traps(void)
 	}
 }
 
-#ifndef __MINGW32__
+#ifndef _WIN32
 /* Lives far away from here, needed for forkchild */
 static void closescript(void);
 
@@ -4811,7 +4811,7 @@ noclobberopen(const char *fname)
  * the pipe without forking.
  */
 /* openhere needs this forward reference */
-#ifdef __MINGW32__
+#ifdef _WIN32
 static int openhere(union node *redir);
 #else
 static void expandhere(union node *arg, int fd);
@@ -4857,7 +4857,7 @@ openredirect(union node *redir)
 	char *fname;
 	int f;
 
-#ifdef __MINGW32__
+#ifdef _WIN32
 	switch (redir->nfile.type) {
 		case NFROM:
 			if (!strcmp(redir->nfile.expfname, "/dev/null"))
@@ -4946,7 +4946,7 @@ openredirect(union node *redir)
 static int
 copyfd(int from, int to)
 {
-#ifdef __MINGW32__
+#ifdef _WIN32
 	char* fds = ckmalloc(to);
 	int i,fd;
 	memset(fds,0,to);
@@ -5426,7 +5426,7 @@ exptilde(char *startp, char *p, int flag)
 	if (*name == '\0') {
 		home = lookupvar(homestr);
 	} else {
-#ifdef __MINGW32__
+#ifdef _WIN32
 		goto lose;
 #else
 		pw = getpwnam(name);
@@ -5457,7 +5457,7 @@ struct backcmd {                /* result of evalbackcmd */
 	int fd;                 /* file descriptor to read from */
 	char *buf;              /* buffer */
 	int nleft;              /* number of chars in buffer */
-#ifdef __MINGW32__
+#ifdef _WIN32
 	struct forkshell fs;
 #else
 	struct job *jp;         /* job structure for command */
@@ -5477,7 +5477,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 	result->fd = -1;
 	result->buf = NULL;
 	result->nleft = 0;
-#ifdef __MINGW32__
+#ifdef _WIN32
 	memset(&result->fs, 0, sizeof(result->fs));
 #else
 	result->jp = NULL;
@@ -5490,7 +5490,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 	herefd = -1;
 
 	{
-#ifdef __MINGW32__
+#ifdef _WIN32
 		result->fs.fp = "evalbackcmd";
 		result->fs.n = n;
 		result->fs.flags = EV_EXIT;
@@ -5528,7 +5528,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 	}
 	herefd = saveherefd;
  out:
-#ifdef __MINGW32__
+#ifdef _WIN32
 	TRACE(("evalbackcmd done: fd=%d buf=0x%x nleft=%d fs=0x%x\n",
 		result->fd, result->buf, result->nleft, result->fs));
 #else
@@ -5577,7 +5577,7 @@ expbackq(union node *cmd, int quoted, int quotes)
 	}
 
 	free(in.buf);
-#ifdef __MINGW32__
+#ifdef _WIN32
 	set_exitstatus(finish_command(&in.fs.cmd), in.fs.cmd.argv, &back_exitstatus);
 	forkshell_cleanup(&in.fs);
 #else
@@ -7925,7 +7925,7 @@ evalsubshell(union node *n, int flags)
 		redirect(n->nredir.redirect, 0);
 		evaltreenr(n->nredir.n, flags);
 	} else {
-#ifdef __MINGW32__
+#ifdef _WIN32
 		status = forkshell("evalsubshell", n, backgnd ? (flags | EV_EXIT | EV_TESTED) : (flags | EV_EXIT));
 	}
 #else
@@ -7994,7 +7994,7 @@ expredir(union node *n)
 static void
 evalpipe(union node *n, int flags)
 {
-#ifdef __MINGW32__
+#ifdef _WIN32
 	struct forkshell fs;
 #else
 	struct job *jp;
@@ -8010,7 +8010,7 @@ evalpipe(union node *n, int flags)
 		pipelen++;
 	flags |= EV_EXIT;
 	INT_OFF;
-#ifndef __MINGW32__
+#ifndef _WIN32
 	jp = makejob(/*n,*/ pipelen);
 #endif
 	prevfd = -1;
@@ -8018,7 +8018,7 @@ evalpipe(union node *n, int flags)
 		prehash(lp->n);
 		pip[1] = -1;
 		if (lp->next) {
-#ifdef __MINGW32__
+#ifdef _WIN32
 			if (_pipe(pip, 0, 0) < 0) {
 #else
 			if (pipe(pip) < 0) {
@@ -8027,7 +8027,7 @@ evalpipe(union node *n, int flags)
 				ash_msg_and_raise_error("pipe call failed");
 			}
 		}
-#ifdef __MINGW32__
+#ifdef _WIN32
 		if (prevfd != -1)
 			forkshell_cleanup(&fs);
 		memset(&fs, 0, sizeof(fs));
@@ -8062,13 +8062,13 @@ evalpipe(union node *n, int flags)
 		if (prevfd >= 0)
 			close(prevfd);
 		prevfd = pip[0];
-#ifdef __MINGW32__
+#ifdef _WIN32
 		if (pip[1] >= 0)
 #endif
 			close(pip[1]);
 	}
 	if (n->npipe.backgnd == 0) {
-#ifdef __MINGW32__
+#ifdef _WIN32
 		set_exitstatus(finish_command(&fs.cmd), fs.cmd.argv, NULL); /* the last command in pipe */
 #else
 		exitstatus = waitforjob(jp);
@@ -8090,7 +8090,7 @@ setinteractive(int on)
 		return;
 	is_interactive = on;
 	setsignal(SIGINT);
-#ifndef __MINGW32__
+#ifndef _WIN32
 	setsignal(SIGQUIT);
 #endif
 	setsignal(SIGTERM);
@@ -8441,13 +8441,13 @@ static const struct builtincmd builtintab[] = {
 #if ENABLE_ASH_BUILTIN_TEST
 	{ BUILTIN_REGULAR	"test", testcmd },
 #endif
-#ifndef __MINGW32__
+#ifndef _WIN32
 	{ BUILTIN_SPEC_REG      "times", timescmd },
 #endif
 	{ BUILTIN_SPEC_REG      "trap", trapcmd },
 	{ BUILTIN_REGULAR       "true", truecmd },
 	{ BUILTIN_NOSPEC        "type", typecmd },
-#ifndef __MINGW32__
+#ifndef _WIN32
 	{ BUILTIN_NOSPEC        "ulimit", ulimitcmd },
 	{ BUILTIN_REGULAR       "umask", umaskcmd },
 #endif
@@ -8455,7 +8455,7 @@ static const struct builtincmd builtintab[] = {
 	{ BUILTIN_REGULAR       "unalias", unaliascmd },
 #endif
 	{ BUILTIN_SPEC_REG      "unset", unsetcmd },
-#ifndef __MINGW32__
+#ifndef _WIN32
 	{ BUILTIN_REGULAR       "wait", waitcmd },
 #endif
 };
@@ -8667,7 +8667,7 @@ evalcommand(union node *cmd, int flags)
 	/* Execute the command. */
 	switch (cmdentry.cmdtype) {
 	default:
-#ifdef __MINGW32__
+#ifdef _WIN32
 		shellspawn(argv, path, cmdentry.u.index, varlist.list);
 		break;
 #else
@@ -8910,7 +8910,7 @@ preadfd(void)
 	nr = safe_read(parsefile->fd, buf, BUFSIZ - 1);
 #endif
 
-#ifndef __MINGW32__
+#ifndef _WIN32
 /* nonblock_safe_read() handles this problem */
 	if (nr < 0) {
 		if (parsefile->fd == 0 && errno == EWOULDBLOCK) {
@@ -8978,7 +8978,7 @@ preadbuffer(void)
 		more--;
 		c = *q;
 
-#ifdef __MINGW32__
+#ifdef _WIN32
 		if (!c || c == '\r')
 #else
 		if (!c)
@@ -9192,7 +9192,7 @@ closescript(void)
 static void
 setinputfd(int fd, int push)
 {
-#ifndef __MINGW32__
+#ifndef _WIN32
 	fcntl(fd, F_SETFD, FD_CLOEXEC);
 #endif
 	if (push) {
@@ -11557,7 +11557,7 @@ find_command(char *name, struct cmdentry *entry, int act, const char *path)
 #endif
 			if (errno != ENOENT && errno != ENOTDIR)
 				e = errno;
-#ifdef __MINGW32__
+#ifdef _WIN32
 			if (!strchr(name, '.')) {
 				int len = strlen(fullname);
 				fullname = stalloc(strlen(fullname) + 5);
@@ -11806,7 +11806,7 @@ unsetcmd(int argc ATTRIBUTE_UNUSED, char **argv ATTRIBUTE_UNUSED)
 
 /*      setmode.c      */
 
-#ifndef __MINGW32__
+#ifndef _WIN32
 #include <sys/times.h>
 
 static const unsigned char timescmd_str[] ALIGN1 = {
@@ -12095,7 +12095,7 @@ readcmd(int argc ATTRIBUTE_UNUSED, char **argv ATTRIBUTE_UNUSED)
 	return status;
 }
 
-#ifndef __MINGW32__
+#ifndef _WIN32
 static int
 umaskcmd(int argc ATTRIBUTE_UNUSED, char **argv)
 {
@@ -12165,7 +12165,7 @@ umaskcmd(int argc ATTRIBUTE_UNUSED, char **argv)
 }
 #endif
 
-#ifndef __MINGW32__
+#ifndef _WIN32
 /*
  * ulimit builtin
  *
@@ -13077,7 +13077,7 @@ init(void)
 	basepf.nextc = basepf.buf = basebuf;
 
 	/* from trap.c: */
-#ifndef __MINGW32__
+#ifndef _WIN32
 	signal(SIGCHLD, SIG_DFL);
 #endif
 
@@ -13095,7 +13095,7 @@ init(void)
 			}
 		}
 
-#ifdef __MINGW32__
+#ifdef _WIN32
 		setpwd(NULL, '\0');
 #else
 		snprintf(ppid, sizeof(ppid), "%u", (unsigned) getppid());
@@ -13125,7 +13125,7 @@ procargs(char **argv)
 	arg0 = xargv[0];
 	/* if (xargv[0]) - mmm, this is always true! */
 		xargv++;
-#ifdef __MINGW32__
+#ifdef _WIN32
 	if (*xargv && !strncmp(*xargv,"subash",6)) {
 		if (sscanf(*xargv+6,"%d:%s",&subash_fd,subash_entry) == 2)
 			xargv++;
@@ -13223,7 +13223,7 @@ static short profile_buf[16384];
 extern int etext();
 #endif
 
-#ifdef __MINGW32__
+#ifdef _WIN32
 #include "ash_fork.c"
 #endif
 
@@ -13326,7 +13326,7 @@ int ash_main(int argc ATTRIBUTE_UNUSED, char **argv)
  state2:
 	state = 3;
 	if (
-#if !defined(linux) && !defined(__MINGW32__)
+#if !defined(linux) && !defined(_WIN32)
 	 getuid() == geteuid() && getgid() == getegid() &&
 #endif
 	 iflag
@@ -13351,7 +13351,7 @@ int ash_main(int argc ATTRIBUTE_UNUSED, char **argv)
 		}
 #endif
  state4: /* XXX ??? - why isn't this before the "if" statement */
-#ifdef __MINGW32__
+#ifdef _WIN32
 		subshell_run();
 #endif
 		cmdloop(1);

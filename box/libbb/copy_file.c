@@ -98,7 +98,7 @@ int copy_file(const char *source, const char *dest, int flags)
 			return -1;
 		}
 	} else {
-#ifndef __MINGW32__
+#ifndef _WIN32
 		if (source_stat.st_dev == dest_stat.st_dev
 		 && source_stat.st_ino == dest_stat.st_ino
 		) {
@@ -213,7 +213,7 @@ int copy_file(const char *source, const char *dest, int flags)
 	if (flags & (FILEUTILS_MAKE_SOFTLINK|FILEUTILS_MAKE_HARDLINK)) {
 		int (*lf)(const char *oldpath, const char *newpath);
  make_links:
-#ifndef __MINGW32__
+#ifndef _WIN32
 		// Hmm... maybe
 		// if (DEREF && MAKE_SOFTLINK) source = realpath(source) ?
 		// (but realpath returns NULL on dangling symlinks...)
@@ -240,7 +240,7 @@ int copy_file(const char *source, const char *dest, int flags)
 		int src_fd;
 		int dst_fd;
 
-#ifndef __MINGW32__
+#ifndef _WIN32
 		if (ENABLE_FEATURE_PRESERVE_HARDLINKS && !FLAGS_DEREF) {
 			const char *link_target;
 			link_target = is_in_ino_dev_hashtable(&source_stat);
@@ -322,7 +322,7 @@ int copy_file(const char *source, const char *dest, int flags)
 		goto preserve_mode_ugid_time;
 	}
 
-#ifndef __MINGW32__
+#ifndef _WIN32
 	/* Source is a symlink or a special file */
 	/* We are lazy here, a bit lax with races... */
 	if (dest_exists) {
@@ -359,12 +359,12 @@ int copy_file(const char *source, const char *dest, int flags)
 #endif
 		bb_error_msg("unrecognized file '%s' with mode %x", source, source_stat.st_mode);
 		return -1;
-#ifndef __MINGW32__
+#ifndef _WIN32
 	}
 #endif
 
  preserve_mode_ugid_time:
-#ifndef __MINGW32__
+#ifndef _WIN32
 	if (flags & FILEUTILS_PRESERVE_STATUS
 	/* Cannot happen: */
 	/* && !(flags & (FILEUTILS_MAKE_SOFTLINK|FILEUTILS_MAKE_HARDLINK)) */

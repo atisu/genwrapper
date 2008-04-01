@@ -4,7 +4,7 @@
 extern char **environ;
 extern char *bb_busybox_exec_path;
 
-#ifdef __MINGW32__
+#ifdef _WIN32
 #include "exec_cmd.h"
 
 static char *lookup_prog(const char *dir, const char *cmd, int tryexe)
@@ -109,7 +109,7 @@ static char *path_lookup(const char *cmd, char **path)
 int spawnvpe_pipe(const char *cmd, const char **argv, const char **env,
 		  int pin[], int pout[])
 {
-#ifdef __MINGW32__
+#ifdef _WIN32
 	char **path = get_path_split();
 
 	pid_t pid = spawnvppe_pipe(cmd, argv, env, path, pin, pout);
@@ -129,7 +129,7 @@ int spawnvppe_pipe(const char *cmd, const char **argv, const char **env,
 	const char *argv0 = argv[0];
 	pid_t pid;
 
-#ifdef __MINGW32__
+#ifdef _WIN32
 	int s0 = -1, s1 = -1, argc;
 	char *prog;
 	const char **qargv, *interpr;
@@ -144,7 +144,7 @@ int spawnvppe_pipe(const char *cmd, const char **argv, const char **env,
 		cmd_basename++;
 	argv[0] = cmd_basename;
 
-#ifndef __MINGW32__
+#ifndef _WIN32
 	pid = fork();
 	if (pid < 0)
 		die("unable to fork");

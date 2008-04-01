@@ -101,7 +101,7 @@
 
 #if (defined __digital__ && defined __unix__)
 # include <sex.h>
-#elif defined __MINGW32__
+#elif defined _WIN32
 /* defined in <sys/param.h> but that would include other files too */
 #define BIG_ENDIAN      4321
 #define LITTLE_ENDIAN   1234
@@ -138,7 +138,7 @@
 #endif
 
 /* ---- Networking ------------------------------------------ */
-#if defined __MINGW32__
+#if defined _WIN32
 # include <ws2tcpip.h>
 #elif !defined __APPLE__
 # include <arpa/inet.h>
@@ -150,7 +150,7 @@ typedef int socklen_t;
 #endif
 
 /* ---- Compiler dependent settings ------------------------- */
-#if (defined __digital__ && defined __unix__) || defined __MINGW32__ || defined __APPLE__
+#if (defined __digital__ && defined __unix__) || defined _WIN32 || defined __APPLE__
 # undef HAVE_MNTENT_H
 # undef HAVE_SYS_STATFS_H
 #else
@@ -259,7 +259,7 @@ typedef unsigned smalluint;
 #define fdprintf dprintf
 #endif
 
-#if defined(__dietlibc__) || defined(__MINGW32__) || defined(__APPLE__)
+#if defined(__dietlibc__) || defined(_WIN32) || defined(__APPLE__)
 static ALWAYS_INLINE char* strchrnul(const char *s, char c)
 {
 	while (*s && *s != c) ++s;

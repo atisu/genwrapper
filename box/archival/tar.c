@@ -320,7 +320,7 @@ static int writeTarHeader(struct TarBallInfo *tbInfo,
 		/* Append '/' only if there is a space for it */
 		if (!header.name[sizeof(header.name)-1])
 			header.name[strlen(header.name)] = '/';
-#ifndef __MINGW32__
+#ifndef _WIN32
 	} else if (S_ISCHR(statbuf->st_mode)) {
 		header.typeflag = CHRTYPE;
 		PUT_OCTAL(header.devmajor, major(statbuf->st_rdev));

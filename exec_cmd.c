@@ -2,7 +2,7 @@
 #include "exec_cmd.h"
 #include "spawn-pipe.h"
 #define MAX_ARGS	32
-#define EXEC_PATH_ENVIRONMENT "GIT_EXEC_PATH"                                   
+#define EXEC_PATH_ENVIRONMENT "GIT_EXEC_PATH"
 
 extern char **environ;
 extern char *bb_busybox_exec_path;
@@ -10,8 +10,10 @@ static const char *current_exec_path;
 
 static const char *builtin_exec_path(void)
 {
-#ifndef __MINGW32__
-	return GIT_EXEC_PATH;
+	static const char *dot = ".";
+
+#ifndef _WIN32
+	return dot;
 #else
 	int len;
 	char *p, *q, *sl;
@@ -21,7 +23,7 @@ static const char *builtin_exec_path(void)
 
 	len = strlen(_pgmptr);
 	if (len < 2)
-		return ep = ".";
+		return ep = dot;
 
 	p = ep = xmalloc(len+1);
 	q = _pgmptr;
@@ -37,7 +39,7 @@ static const char *builtin_exec_path(void)
 	if (sl)
 		*sl = '\0';
 	else
-		ep[0] = '.', ep[1] = '\0';
+		ep = dot;
 	return ep;
 #endif
 }
@@ -82,7 +84,7 @@ int spawnve_git_cmd(const char **argv, int pin[2], int pout[2], const char **env
 
 		if (!exec_dir || !*exec_dir) continue;
 
-#ifdef __MINGW32__
+#ifdef _WIN32
 		if (*exec_dir != '/' && exec_dir[1] != ':') {
 #else
 		if (*exec_dir != '/') {

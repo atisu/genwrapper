@@ -579,7 +579,7 @@ static int list_single(struct dnode *dn)
 			column += printf("%7ld ", (long) dn->dstat.st_ino);
 			break;
 		case LIST_BLOCKS:
-#ifdef __MINGW32__
+#ifdef _WIN32
 #define BLKSZ  512
 			column += printf("%4"OFF_FMT"d ",
 				(off_t)(dn->dstat.st_size / BLKSZ +
@@ -607,7 +607,7 @@ static int list_single(struct dnode *dn)
 			column += printf("%-8d %-8d", dn->dstat.st_uid, dn->dstat.st_gid);
 			break;
 		case LIST_SIZE:
-#ifndef __MINGW32__
+#ifndef _WIN32
 		case LIST_DEV:
 			if (S_ISBLK(dn->dstat.st_mode) || S_ISCHR(dn->dstat.st_mode)) {
 				column += printf("%4d, %3d ", (int) major(dn->dstat.st_rdev),
@@ -620,7 +620,7 @@ static int list_single(struct dnode *dn)
 				} else {
 					column += printf("%9"OFF_FMT"d ", (off_t) dn->dstat.st_size);
 				}
-#ifndef __MINGW32__
+#ifndef _WIN32
 			}
 #endif
 			break;

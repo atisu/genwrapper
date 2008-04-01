@@ -210,7 +210,7 @@ char get_header_tar(archive_handle_t *archive_handle)
 
 	/* getOctal trashes subsequent field, therefore we call it
 	 * on fields in reverse order */
-#ifndef __MINGW32__
+#ifndef _WIN32
 	if (tar.devmajor[0]) {
 		unsigned minor = GET_OCTAL(tar.devminor);
 		unsigned major = GET_OCTAL(tar.devmajor);

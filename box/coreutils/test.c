@@ -341,7 +341,7 @@ static int binop(void)
 }
 
 
-#ifndef __MINGW32__
+#ifndef _WIN32
 static void initialize_group_array(void)
 {
 	ngroups = getgroups(0, NULL);
@@ -387,7 +387,7 @@ static int is_a_group_member(gid_t gid)
    executable. */
 static int test_eaccess(char *path, int mode)
 {
-#ifndef __MINGW32__
+#ifndef _WIN32
 	struct stat st;
 	unsigned int euid = geteuid();
 
@@ -484,7 +484,7 @@ static int filstat(char *nm, enum token mode)
 	}
 	if (mode == FILGZ)
 		return s.st_size > 0L;
-#ifndef __MINGW32__
+#ifndef _WIN32
 	if (mode == FILUID)
 		return s.st_uid == geteuid();
 	if (mode == FILGID)

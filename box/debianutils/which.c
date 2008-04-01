@@ -24,7 +24,7 @@ int which_main(int argc, char **argv)
 
 	/* This matches what is seen on e.g. ubuntu
 	 * "which" there is a shell script */
-#ifndef __MINGW32__
+#ifndef _WIN32
 	if (!getenv("PATH")) {
 		putenv((char*)bb_PATH_root_path);
 	}

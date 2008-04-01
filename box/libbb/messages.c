@@ -42,7 +42,7 @@ const char bb_path_shadow_file[] ALIGN1 = "/etc/shadow";
 const char bb_path_group_file[] ALIGN1 = "/etc/group";
 const char bb_path_gshadow_file[] ALIGN1 = "/etc/gshadow";
 const char bb_path_motd_file[] ALIGN1 = "/etc/motd";
-#ifdef __MINGW32__
+#ifdef _WIN32
 const char bb_dev_null[] ALIGN1 = "nul";
 #else
 const char bb_dev_null[] ALIGN1 = "/dev/null";
@@ -59,7 +59,7 @@ const int const_int_1 = 1;
  * and it will end up in bss */
 const int const_int_0 = 0;
 
-#ifndef __MINGW32__
+#ifndef _WIN32
 #include <utmp.h>
 /* This is usually something like "/var/adm/wtmp" or "/var/log/wtmp" */
 const char bb_path_wtmp_file[] ALIGN1 =
@@ -70,7 +70,7 @@ const char bb_path_wtmp_file[] ALIGN1 =
 #else
 #error unknown path to wtmp file
 #endif
-#endif /* __MINGW32__ */
+#endif /* _WIN32 */
 
 /* We use it for "global" data via *(struct global*)&bb_common_bufsiz1.
  * Since gcc insists on aligning struct global's members, it would be a pity

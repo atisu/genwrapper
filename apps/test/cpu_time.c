@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
-#ifdef __MINGW32__
+#ifdef _WIN32
 #include <windows.h>
 #include <math.h>
 #define usleep(usec) (Sleep ((usec) / 1000), 0)

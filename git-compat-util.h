@@ -49,7 +49,7 @@
 #include <time.h>
 #include <signal.h>
 #include <fnmatch.h>
-#ifndef __MINGW32__
+#ifndef _WIN32
 #include <sys/wait.h>
 #include <sys/poll.h>
 #include <sys/socket.h>
@@ -57,7 +57,7 @@
 #endif
 #include <assert.h>
 #include <regex.h>
-#ifndef __MINGW32__
+#ifndef _WIN32
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
@@ -89,7 +89,7 @@
 #endif
 
 #ifndef PRIuMAX
-#ifndef __MINGW32__
+#ifndef _WIN32
 #define PRIuMAX "llu"
 #else
 #define PRIuMAX "I64u"
@@ -105,7 +105,7 @@
 #endif
 #endif
 
-#ifdef __MINGW32__
+#ifdef _WIN32
 #define DIRECTORY_SEPARATOR  '\\'
 #define PATH_SEPARATOR  ';'
 #else
@@ -375,7 +375,7 @@ static inline int strtoul_ui(char const *s, int base, unsigned int *result)
 	return 0;
 }
 
-#ifdef __MINGW32__
+#ifdef _WIN32
 
 #ifndef S_ISLNK
 #define S_IFLNK    0120000 /* Symbolic link */
@@ -585,6 +585,6 @@ int mingw_socket(int domain, int type, int protocol);
 extern void quote_argv(const char **dst, const char **src);
 extern const char *parse_interpreter(const char *cmd);
 
-#endif /* __MINGW32__ */
+#endif /* _WIN32 */
 
 #endif
