@@ -22,12 +22,6 @@
 #include "boinc_api.h"
 #include "common.h"
 
-//extern BOINC_OPTIONS boinc_options;
-//static int boinc_init_called;
-
-// extern int boinc_resolve_filename(const char*, char*, int len);
-// extern int boinc_fraction_done(double);
-
 int boinc_resolve_filename_(const char* filename) {
     char buf[PATH_MAX];
     int result;
