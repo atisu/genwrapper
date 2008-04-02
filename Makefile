@@ -646,7 +646,6 @@ clean:
 	$(RM) *.spec *.pyc *.pyo */*.pyc */*.pyo common-cmds.h TAGS tags
 	$(RM) -r autom4te.cache
 	$(RM) configure config.log config.mak.autogen config.mak.append config.status config.cache
-	$(RM) ctype.o quote.o usage.o
 	find . -name "*~" -exec $(RM) {} \;
 
 .PHONY: all install clean strip
