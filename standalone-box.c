@@ -32,44 +32,52 @@ int main(int argc, char **argv)
  	if (getenv("GIT_TRACE")) {
 		fprintf(stderr, "argv[0]=%s\n", argv[0]);
 	}
-	/*
-	 * Take the basename of argv[0] as the command
-	 * name, and the dirname as the default exec_path
-	 * if it's an absolute path and we don't have
-	 * anything better or at least the current working directory.
-	 */
-	slash = strrchr(argv[0], DIRECTORY_SEPARATOR);
-	if(slash) {
-		*slash++ = '\0';
-#ifdef _WIN32
-		if (argv[0][1] == ':') {
-#else
-		if (argv[0][0] == '/') {
-#endif
-		/* If absolute path */
-			exec_path = argv[0];
-		} else {
-			char *cwd;
 
-			cwd = getcwd(NULL, 0);
-			chdir(argv[0]);
-			/* chdir may fail but then we take the current dir */
-			exec_path = getcwd(NULL, 0);
-			if (cwd) {
-				chdir(cwd);
-				free(cwd);
-			}
-		}
-		argv[0] = slash;
-	}
-	if(exec_path) {
-		slash = xzalloc(strlen(exec_path) + strlen(argv[0]) + 2);
-		strcpy(slash, exec_path);
-		slash[strlen(exec_path)] = DIRECTORY_SEPARATOR;
-		strcat(slash, argv[0]);
+	/* Try to find our path in the environment first */
+ 	slash = getenv("BB_BUSYBOX_EXEC_PATH");
+ 	if (slash) {
 		*(char **)&bb_busybox_exec_path = slash;
-		if (!bb_busybox_exec_path) die("Could not determine my exec name");
+	} else {
+		/*
+		 * Take the basename of argv[0] as the command
+		 * name, and the dirname as the default exec_path
+		 * if it's an absolute path and we don't have
+		 * anything better or at least the current working directory.
+		 */
+		slash = strrchr(argv[0], DIRECTORY_SEPARATOR);
+		if(slash) {
+			*slash++ = '\0';
+#ifdef _WIN32
+			if (argv[0][1] == ':') {
+#else
+			if (argv[0][0] == '/') {
+#endif
+			/* If absolute path */
+				exec_path = argv[0];
+			} else {
+				char *cwd;
+
+				cwd = getcwd(NULL, 0);
+				chdir(argv[0]);
+				/* chdir may fail but then we take the current dir */
+				exec_path = getcwd(NULL, 0);
+				if (cwd) {
+					chdir(cwd);
+					free(cwd);
+				}
+			}
+			argv[0] = slash;
+		}
+		if(exec_path) {
+			slash = xzalloc(strlen(exec_path) + strlen(argv[0]) + 2);
+			strcpy(slash, exec_path);
+			slash[strlen(exec_path)] = DIRECTORY_SEPARATOR;
+			strcat(slash, argv[0]);
+			*(char **)&bb_busybox_exec_path = slash;
+			setenv("BB_BUSYBOX_EXEC_PATH", bb_busybox_exec_path, 1);
+		}
 	}
+	if (!bb_busybox_exec_path) die("Could not determine my exec name");
 
 	/*
 	 * We search for git commands in the following order:
