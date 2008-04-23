@@ -24,7 +24,7 @@ DONE - unzip %BASENAME%
 DONE - exec profile script
 DONE - exec wu script (1st argv - needs to be resolved)
 - handle signals
-- exit status ?
+DONE - exit status ?
 - should work with DC-API
 - should work on WINDOWS (using MINGW)
 - test via BOINC
@@ -34,6 +34,8 @@ DONE - exec wu script (1st argv - needs to be resolved)
 #include <libgen.h>
 #include <vector>
 #include <string>
+#include <sstream>
+#include <errno.h>
 #ifdef _WIN32
 #include "boinc_win.h"
 #else
@@ -42,88 +44,62 @@ DONE - exec wu script (1st argv - needs to be resolved)
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "procinfo.h"
-#endif
-#include <errno.h>
-
+#endif // _WIN32
 #ifdef WANT_DCAPI
 #include "dc_client.h"
 #else
 #include "boinc_api.h"
-#endif
+#endif // WANT_DCAPI
+// for boinc_sleep()
+#include "util.h"
 #include "boinc_zip.h"
+#include "gw_common.h"
+// box/common.h
+#include "common.h"
+#include "task.h"
+
 
 #ifdef _WIN32
 #define GENWRAPPER_EXE  "gitbox.exe"
 #else
-#define GENWRAPPER_EXE  "gitbox"
-#endif
+#define GENWRAPPER_EXE  "./gitbox"
+#endif // _WIN32
 #define PROFILE_SCRIPT  "profile"
 #define EXEC_SCRIPT     "gw_tmp.sh"
+#define POLL_PERIOD 1.0
 
-
-#define gw_do_log(FORMAT, ...) \
-    fprintf(stderr, "%s[%d]::%s(): ", __FILE__, __LINE__, __FUNCTION__); \
-    fprintf(stderr, FORMAT, ## __VA_ARGS__); \
-    fprintf(stderr, "\n"); \
-    fflush(stderr);
-
-void gw_finish(int status) {
-#ifdef WANT_DCAPI
-    DC_finish(status);
-#else
-    boinc_finish(status);
-#endif        
+void send_status_message(TASK& task, double frac_done) {
+    boinc_report_app_status(
+        //task.starting_cpu + task.cpu_time(),
+        //task.starting_cpu,
+        1.0,
+        0.0,
+        frac_done
+    );
 }
 
-int gw_file_exist(std::string filename) {
-    int result;
-    struct stat stat_buf;
-    result = stat(filename.c_str(), &stat_buf);
-    int my_errno = errno;
-    if (result == -1) {
-        if (my_errno == ENOENT) {
-            gw_do_log("ERROR: file does not exist (%s)", filename.c_str());
-            return 255;
-        } else {
-            gw_do_log("ERROR: unknown error ('%s')", strerror(my_errno));
-            return 255;
-        }
-    }
-    return 0;
-}
-
-int gw_file_exist(const char *filename) {
-    std::string s_filename(filename);
-    return gw_file_exist(s_filename);
-}
-
-
-int gw_put_file(char *filename, std::string text) {
-    int   retvalue;
-    FILE *newfile;
-
-    newfile = fopen(filename, "wt");
-    if (!newfile) {
-        gw_do_log("ERROR: error creating file (%s)", filename);
-        return 255;
-    }
-    retvalue = fwrite(text.c_str(), sizeof(char), strlen(text.c_str()), newfile);
-    fclose(newfile);
-    if (retvalue < (signed int)strlen(text.c_str())) {
-        gw_do_log("ERROR: %d bytes requested, %d bytes written",
-            (int)strlen(text.c_str()), retvalue);
-        return 255;    
-    }
-    return 0;
+double read_fraction_done(void) {
+	double fraction = 0.0;
+	FILE *f = fopen(FILE_FRACTION_DONE, "r");
+	if (!f) {
+		return 0.0;
+	}
+	fscanf(f,"%lf", &fraction);
+	fclose(f);
+	return fraction;
 }
 
 int main(int argc, char** argv) {
+    double frac_done = 0.0; 
     int result;
 #ifdef WANT_DCAPI
     DC_init();
 #else
     BOINC_OPTIONS options;
+    memset(&options, 0, sizeof(options));
     options.main_program = true;
+    options.check_heartbeat = true;
+    options.handle_process_control = true;
     boinc_init_options(&options);
 #endif
     if (argc<2) {
@@ -138,13 +114,8 @@ int main(int argc, char** argv) {
 #endif
     std::string zip_filename(exe_filename);
     zip_filename.append(".zip");
-#ifdef WANT_DCAPI
-    std::string zip_filename_resolved(DC_resolveFilename(DC_FILE_IN, zip_filename.c_str()));
-#else
-    std::string zip_filename_resolved;
-    boinc_resolve_filename_s(zip_filename.c_str(), zip_filename_resolved);
-#endif
-    printf("%s\n", zip_filename_resolved.c_str());    
+    std::string zip_filename_resolved(gw_resolve_filename(zip_filename.c_str()));
+    gw_do_log("resolved zip filename is: %s\n", zip_filename_resolved.c_str());    
     if (gw_file_exist(zip_filename_resolved) != 0)
         gw_finish(255);
     result = boinc_zip(UNZIP_IT, zip_filename_resolved, NULL);
@@ -157,43 +128,48 @@ int main(int argc, char** argv) {
         gw_finish(255);
     if (gw_file_exist(PROFILE_SCRIPT) != 0)
         gw_finish(255);
-    
     std::string wu_script(argv[1]);
     if (gw_file_exist(wu_script) != 0)
         gw_finish(255);
-#ifdef WANT_DCAPI
-    std::string wu_script_resolved(DC_resolveFilename(DC_FILE_IN, wu_script.c_str()));
-#else
-    std::string wu_script_resolved;
-    boinc_resolve_filename_s(wu_script.c_str(), wu_script_resolved);
-#endif
+    std::string wu_script_resolved(gw_resolve_filename(wu_script.c_str()));
     if (gw_file_exist(wu_script_resolved) != 0)
         gw_finish(255);
-
-    // create script file which execs profile and the wu supplied (argv[1]) 
-    // script
-    std::string exec_script;
-    exec_script += ". ./";
-    exec_script += PROFILE_SCRIPT;
-    exec_script += "\n";
-    exec_script += "./";
-    exec_script.append(wu_script_resolved);    
-    exec_script += "\n";
-    if (gw_put_file(EXEC_SCRIPT, exec_script) != 0) {
+    // create script file which execs profile and the wu supplied (argv[1]) script
+    std::ostringstream exec_script;
+    exec_script << "set +e\n" \
+        << ". ./" << PROFILE_SCRIPT << "\n" \
+        << "sh ./" << wu_script_resolved << " $@\n" \
+        // script exits with exit status of the wu script
+        << "exit $? \n";    
+    if (gw_put_file(EXEC_SCRIPT, exec_script.str()) != 0) {
         gw_do_log("ERROR: error creating main script ('%s')", EXEC_SCRIPT);
     }
-    // exec main script using genwrapper
-    std::string system_cmd;
-#ifndef _WIN32
-    system_cmd += "./";
-#endif
-    system_cmd += GENWRAPPER_EXE;
-    system_cmd += " sh ";
-    system_cmd += EXEC_SCRIPT;    
-    if (system(system_cmd.c_str()) == -1) {
-        gw_do_log("ERROR: failed to start main script");
-        gw_finish(255);
-    } 
+    // create task
+    TASK gw_task;
+    gw_task.interpreter = GENWRAPPER_EXE;
+    gw_task.script = EXEC_SCRIPT;
+    gw_task.stdin_filename = "";
+    gw_task.stdout_filename = "stdout.txt";
+    gw_task.stderr_filename = "stderr.txt";
+
+    gw_task.run(argc, argv);
+    while(1) {
+        int status;
+        if (gw_task.poll(status)) {
+            if (status) {
+                gw_do_log("app error: 0x%d\n", status);
+                gw_finish(status);
+            }
+            break;
+        }
+		double frac_done_t = read_fraction_done();
+		if (frac_done_t > frac_done)
+			frac_done = frac_done_t;
+        send_status_message(gw_task, frac_done);
+        // no DC-API equivalent, fallback to BOINC API
+        boinc_sleep(POLL_PERIOD);
+    }
+
     gw_finish(0);
 }
 

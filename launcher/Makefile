@@ -10,6 +10,7 @@ ifneq (,$(findstring MINGW,$(uname_S)))
     MINGW=YesPlease
 endif
 
+CC=g++
 
 # Change the following options to match your installation
 #WANT_DCAPI=YesPlease
@@ -65,10 +66,19 @@ ifdef MINGW
 CXXFLAGS +=  -DWIN32 -D_WIN32 -D_MT -DNDEBUG -D_WINDOWS -DCLIENT -DNODB -D_CONSOLE -fexceptions
 endif
 
-PROGS = gw_launcher
+SOURCES = gw_launcher.C \
+	task.C \
+	gw_common.C \
 
-all: $(PROGS)
+
+OBJECTS = $(SOURCES:.C=.o)
+PROG = gw_launcher$(EXE_SUFFIX)
+
+all: $(OBJECTS) $(PROG)
+
+$(PROG): $(OBJECTS)
+	$(CC) $(OBJECTS) $(LDFLAGS) $(LOADLIBES) -o $(PROG)
 
 clean:
-	rm -rf $(PROGS)$(EXE_SUFFIX) $(PROGS).o
+	rm -rf $(PROG)$(EXE_SUFFIX) $(OBJECTS)
 
