@@ -80,5 +80,5 @@ $(PROG): $(OBJECTS)
 	$(CC) $(OBJECTS) $(LDFLAGS) $(LOADLIBES) -o $(PROG)
 
 clean:
-	rm -rf $(PROG)$(EXE_SUFFIX) $(OBJECTS)
+	rm -rf $(PROG) $(OBJECTS)
 
