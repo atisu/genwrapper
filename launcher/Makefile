@@ -10,7 +10,7 @@ ifneq (,$(findstring MINGW,$(uname_S)))
     MINGW=YesPlease
 endif
 
-CC=g++
+#CC=g++
 
 # Change the following options to match your installation
 #WANT_DCAPI=YesPlease
@@ -40,23 +40,28 @@ endif
 LDFLAGS= \
     -L$(BOINC_API_DIR) \
     -L$(BOINC_LIB_DIR) \
-    -L$(BOINC_ZIP_DIR) \
     -L$(BOINC_DIR) \
+    -L../box/ \
     -L. 
 
 ifdef MINGW
-LOADLIBES = -lboinc_zip -lboinc -lstdc++
+LOADLIBES = -lboinc -lbox -lstdc++
 else
-LOADLIBES = -lboinc_api -lboinc_zip -lboinc -lpthread
+LOADLIBES = -lbox -lboinc_api -lboinc -lpthread 
 endif
 
 CXXFLAGS = -g \
     -I../ \
     -I$(BOINC_DIR)/include \
     -I$(BOINC_API_DIR) \
-    -I$(BOINC_ZIP_DIR) \
     -I$(BOINC_LIB_DIR) \
-    -DBOINC
+    -I../box/include/ \
+    -DBOINC \
+	-DUSE_GLIBC_ERRNO
+
+CFLAGS = -I../box/include/ \
+	-DUSE_GLIBC_ERRNO
+
 
 ifdef WANT_DCAPI
 CXXFLAGS += -DWANT_DCAPI $(DCAPI_INCLUDE)
@@ -68,17 +73,22 @@ endif
 
 SOURCES = gw_launcher.C \
 	task.C \
-	gw_common.C \
+	gw_common.C
 
+SOURCES_C = ../usage.c \
+	../ctype.c
+	
+OBJECTS_C = $(SOURCES_C:.c=.o)
+OBJECTS = $(SOURCES:.C=.o) 
 
-OBJECTS = $(SOURCES:.C=.o)
 PROG = gw_launcher$(EXE_SUFFIX)
 
-all: $(OBJECTS) $(PROG)
 
-$(PROG): $(OBJECTS)
-	$(CC) $(OBJECTS) $(LDFLAGS) $(LOADLIBES) -o $(PROG)
+all: $(OBJECTS) $(OBJECTS_C) $(PROG)
+
+$(PROG): $(OBJECTS) $(OBJECTS_C) ../box/libbox.a
+	$(CXX) $(OBJECTS_C) $(OBJECTS) $(LDFLAGS) $(LOADLIBES) -o $(PROG)
 
 clean:
-	rm -rf $(PROG) $(OBJECTS)
+	rm -rf $(PROG) $(OBJECTS) $(OBJECTS_C)
 

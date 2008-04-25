@@ -52,12 +52,11 @@ DONE - exit status ?
 #endif // WANT_DCAPI
 // for boinc_sleep()
 #include "util.h"
-#include "boinc_zip.h"
 #include "gw_common.h"
 // box/common.h
 #include "common.h"
 #include "task.h"
-
+#include "unzip.h"
 
 #ifdef _WIN32
 #define GENWRAPPER_EXE  "gitbox.exe"
@@ -67,6 +66,27 @@ DONE - exit status ?
 #define PROFILE_SCRIPT  "profile"
 #define EXEC_SCRIPT     "gw_tmp.sh"
 #define POLL_PERIOD 1.0
+
+#ifndef _MAX_PATH
+#define _MAX_PATH 255
+#endif
+
+int gw_unzip(std::string zip_filename) {
+    char **argv;
+    int argc_ = 3,
+        i,
+        result;
+    
+    argv = (char**) calloc(argc_, sizeof(char*)); 
+    argv[0] = strdup("unzip");
+    argv[1] = strdup("-o");
+    argv[2] = strdup(zip_filename.c_str());
+    result = unzip_main(argc_, argv);
+    for (i=0; i<argc_; i++)
+        	free(argv[i]);
+    free(argv);
+    return result;
+}
 
 void send_status_message(TASK& task, double frac_done) {
     boinc_report_app_status(
@@ -118,7 +138,7 @@ int main(int argc, char** argv) {
     gw_do_log("resolved zip filename is: %s\n", zip_filename_resolved.c_str());    
     if (gw_file_exist(zip_filename_resolved) != 0)
         gw_finish(255);
-    result = boinc_zip(UNZIP_IT, zip_filename_resolved, NULL);
+    result = gw_unzip(zip_filename_resolved);
     if (result != 0 ) {
         gw_do_log("ERROR: something went wrong during unzipping ('%s')",
          zip_filename_resolved.c_str());
@@ -151,7 +171,6 @@ int main(int argc, char** argv) {
     gw_task.stdin_filename = "";
     gw_task.stdout_filename = "stdout.txt";
     gw_task.stderr_filename = "stderr.txt";
-
     gw_task.run(argc, argv);
     while(1) {
         int status;
@@ -169,7 +188,6 @@ int main(int argc, char** argv) {
         // no DC-API equivalent, fallback to BOINC API
         boinc_sleep(POLL_PERIOD);
     }
-
     gw_finish(0);
 }
 

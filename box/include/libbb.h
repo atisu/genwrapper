@@ -75,6 +75,7 @@
 # define stime(param)  -1
 #endif
 
+
 /* Some libc's don't declare it, help them */
 extern char **environ;
 
@@ -210,8 +211,10 @@ int sysinfo(struct sysinfo* info);
 /* glibc uses __errno_location() to get a ptr to errno */
 /* We can just memorize it once - no multithreading in busybox :) */
 extern int *const bb_errno;
+#ifndef USE_GLIBC_ERRNO
 #undef errno
 #define errno (*bb_errno)
+#endif
 #endif
 
 unsigned long long monotonic_us(void);
@@ -1237,5 +1240,6 @@ extern const char bb_default_login_shell[];
 #ifndef ARRAY_SIZE /* Also defined in git-compat-util.h */
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #endif
+
 
 #endif /* __LIBBUSYBOX_H__ */
