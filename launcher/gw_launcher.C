@@ -56,7 +56,10 @@ DONE - exit status ?
 // box/common.h
 #include "common.h"
 #include "task.h"
-#include "unzip.h"
+// from unzip.c in libbb
+extern "C" {
+    int unzip_main(int argc, char **argv);
+}
 
 #ifdef _WIN32
 #define GENWRAPPER_EXE  "gitbox.exe"
