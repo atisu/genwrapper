@@ -44,7 +44,7 @@ int main(int argc, char **argv)
 		 * if it's an absolute path and we don't have
 		 * anything better or at least the current working directory.
 		 */
-		slash = strrchr(argv[0], DIRECTORY_SEPARATOR);
+                slash = strrchr(argv[0], DIRECTORY_SEPARATOR);
 		if(slash) {
 			*slash++ = '\0';
 #ifdef _WIN32
@@ -67,16 +67,27 @@ int main(int argc, char **argv)
 				}
 			}
 			argv[0] = slash;
-		}
-		if(exec_path) {
+                } else {
+                    /* No directory separator found. On Windows box may be executed
+                     * by typing forexample "gitbox.exe". In this case the above code 
+                     * fails, we fall back to argv[0]. 
+                     */
+                    slash = argv[0];
+                    if (getenv("GIT_TRACE")) {
+                            fprintf(stderr, "Using argv[0] ('%s') for exec name", argv[0]);
+                    }
+                }
+                if(exec_path) {
 			slash = xzalloc(strlen(exec_path) + strlen(argv[0]) + 2);
 			strcpy(slash, exec_path);
 			slash[strlen(exec_path)] = DIRECTORY_SEPARATOR;
 			strcat(slash, argv[0]);
-			*(char **)&bb_busybox_exec_path = slash;
-			setenv("BB_BUSYBOX_EXEC_PATH", bb_busybox_exec_path, 1);
-		}
-	}
+		} 
+                if (slash) {
+                        *(char **)&bb_busybox_exec_path = slash;
+                        setenv("BB_BUSYBOX_EXEC_PATH", bb_busybox_exec_path, 1);
+                }                        
+        }
 	if (!bb_busybox_exec_path) die("Could not determine my exec name");
 
 	/*
