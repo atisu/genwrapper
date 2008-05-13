@@ -47,11 +47,12 @@ DONE - exit status ?
 #endif // _WIN32
 #ifdef WANT_DCAPI
 #include "dc_client.h"
-#else
-#include "boinc_api.h"
 #endif // WANT_DCAPI
+#include "boinc_api.h"
 // for boinc_sleep()
 #include "util.h"
+// for parse_command_line()
+#include "str_util.h"
 #include "gw_common.h"
 // box/common.h
 #include "common.h"
@@ -112,11 +113,13 @@ double read_fraction_done(void) {
 	return fraction;
 }
 
+
+
 int main(int argc, char** argv) {
     double frac_done = 0.0; 
     int result;
 #ifdef WANT_DCAPI
-    DC_init();
+    DC_initClient();
 #else
     BOINC_OPTIONS options;
     memset(&options, 0, sizeof(options));
@@ -192,5 +195,15 @@ int main(int argc, char** argv) {
         boinc_sleep(POLL_PERIOD);
     }
     gw_finish(0);
+}
+
+int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR Args, int WinMode) {
+    LPSTR command_line;
+    char* argv[100];
+    int argc;
+
+    command_line = GetCommandLine();
+    argc = parse_command_line( command_line, argv );
+    return main(argc, argv);
 }
 

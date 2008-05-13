@@ -16,7 +16,7 @@
 // or write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 //
-//  original by Andrew J. Younge (ajy4490@umiacs.umd.edu)
+// original by Andrew J. Younge (ajy4490@umiacs.umd.edu)
 //
 
 #include <stdio.h>
@@ -31,57 +31,14 @@
 #endif
 #include "common.h"
 #ifdef WANT_DCAPI
-#include "dc_client.h"
 #endif
-//#include "boinc_api.h"
-//#include "diagnostics.h"
-//#include "filesys.h"
-//#include "parse.h"
 #include "str_util.h"
 #include "util.h"
 #include "error_numbers.h"
 #include "gw_common.h"
 #include "task.h"
 
-
-//#define JOB_FILENAME "job.xml"
-//#define CHECKPOINT_FILENAME "checkpoint.txt"
 #define POLL_PERIOD 1.0
-//#ifdef WANT_DCAPI
-//#define CKPT_LABEL_IN		"dc_ckpt_in"
-//#define CKPT_LABEL_OUT		"dc_ckpt_out"
-//#endif
-
-/*
-int TASK::parse(XML_PARSER& xp) {
-    char tag[1024];
-    bool is_tag;
-
-    final_cpu_time = 0;
-    while (!xp.get(tag, sizeof(tag), is_tag)) {
-        if (!is_tag) {
-            fprintf(stderr, "SCHED_CONFIG::parse(): unexpected text %s\n", tag);
-            continue;
-        }
-        if (!strcmp(tag, "/task")) {
-#ifdef WANT_DCAPI
-			stdout_filename = DC_LABEL_STDOUT;
-			stderr_filename = DC_LABEL_STDERR;
-#endif
-			return 0;
-        }
-        else if (xp.parse_string(tag, "interpreter", interpreter)) continue;
-        else if (xp.parse_string(tag, "script", script)) continue;
-#ifndef WANT_DCAPI
-        else if (xp.parse_string(tag, "stdin_filename", stdin_filename)) continue;
-        else if (xp.parse_string(tag, "stdout_filename", stdout_filename)) continue;
-        else if (xp.parse_string(tag, "stderr_filename", stderr_filename)) continue;
-#endif
-        else if (xp.parse_string(tag, "command_line", command_line)) continue;
-    }
-    return ERR_XML_PARSE;
-}
-*/
 
 int TASK::run(int argct, char** argvt) {
     string interpreter_path, 
@@ -112,25 +69,26 @@ int TASK::run(int argct, char** argvt) {
 
     memset(&process_info, 0, sizeof(process_info));
     memset(&startup_info, 0, sizeof(startup_info));
-    command = app_path + string(" ") + command_line;
+    command = app_path+ string(" sh ")+ script_path+ 
+        string(" ")+ command_line;
 
     // pass std handles to app
     //
     startup_info.dwFlags = STARTF_USESTDHANDLES;
-	if (stdin_filename != "") {
+    if (stdin_filename != "") {
         stdin_path = gw_resolve_filename(stdin_filename.c_str());
-		startup_info.hStdInput = win_fopen(stdin_path.c_str(), "r");
-	}
-	if (stdout_filename != "") {
+	startup_info.hStdInput = win_fopen(stdin_path.c_str(), "r");
+    }
+    if (stdout_filename != "") {
         stdout_path = gw_resolve_filename(stdout_filename.c_str());
-		startup_info.hStdOutput = win_fopen(stdout_path.c_str(), "w");
-	}
+	startup_info.hStdOutput = win_fopen(stdout_path.c_str(), "w");
+    }
     if (stderr_filename != "") {
         stderr_path = gw_resolve_filename(stderr_filename.c_str());
         startup_info.hStdError = win_fopen(stderr_path.c_str(), "w");
-	} else {
+    }/* else {
         startup_info.hStdError = win_fopen(STDERR_FILE, "a");
-    }
+    }*/
     if (!CreateProcess(
         app_path.c_str(),
         (LPSTR)command.c_str(),
@@ -165,22 +123,22 @@ int TASK::run(int argct, char** argvt) {
         gw_finish(ERR_FORK);
     }
     if (pid == 0) {
-		// we're in the child process here
-		//
-		// open stdout, stdin if file names are given
-		// NOTE: if the application is restartable,
-		// we should deal with atomicity somehow
-		//
-		if (stdin_filename != "") {
+        // we're in the child process here
+        //
+        // open stdout, stdin if file names are given
+        // NOTE: if the application is restartable,
+        // we should deal with atomicity somehow
+	//
+	if (stdin_filename != "") {
             stdin_path = gw_resolve_filename(stdin_filename.c_str());
-			stdin_file = freopen(stdin_path.c_str(), "r", stdin);
-			if (!stdin_file) return ERR_FOPEN;
-		}
-		if (stdout_filename != "") {
+            stdin_file = freopen(stdin_path.c_str(), "r", stdin);
+            if (!stdin_file) return ERR_FOPEN;
+	}
+	if (stdout_filename != "") {
             stdout_path = gw_resolve_filename(stdout_filename.c_str());
-			stdout_file = freopen(stdout_path.c_str(), "w", stdout);
-			if (!stdout_file) return ERR_FOPEN;
-		}
+            stdout_file = freopen(stdout_path.c_str(), "w", stdout);
+            if (!stdout_file) return ERR_FOPEN;
+	}
         if (stderr_filename != "") {
             stderr_path = gw_resolve_filename(stderr_filename.c_str());
             stderr_file = freopen(stderr_path.c_str(), "w", stderr);

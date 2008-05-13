@@ -66,6 +66,8 @@
 #ifdef WANT_DCAPI
 #define CKPT_LABEL_IN		"dc_ckpt_in"
 #define CKPT_LABEL_OUT		"dc_ckpt_out"
+#define DC_STDERR			"dc_stderr.txt"
+#define DC_STDOUT			"dc_stdout.txt"
 #endif
 
 using std::vector;
@@ -243,20 +245,10 @@ int TASK::run(int argct, char** argvt) {
     // pass std handles to app
     //
     startup_info.dwFlags = STARTF_USESTDHANDLES;
-	if (stdout_filename != "") {
-		boinc_resolve_filename_s(stdout_filename.c_str(), stdout_path);
-		startup_info.hStdOutput = win_fopen(stdout_path.c_str(), "w");
-	}
 	if (stdin_filename != "") {
 		boinc_resolve_filename_s(stdin_filename.c_str(), stdin_path);
 		startup_info.hStdInput = win_fopen(stdin_path.c_str(), "r");
 	}
-    if (stderr_filename != "") {
-        boinc_resolve_filename_s(stderr_filename.c_str(), stderr_path);
-        startup_info.hStdError = win_fopen(stderr_path.c_str(), "w");
-	} else {
-        startup_info.hStdError = win_fopen(STDERR_FILE, "a");
-    }
 #ifdef WANT_DCAPI
 	// create additional files required by DCAPI
 	FILE *f;
@@ -272,6 +264,21 @@ int TASK::run(int argct, char** argvt) {
 	} else {
 		fprintf(stderr, "Launcher: ERROR: Cannot create '%s'\n", DC_LABEL_CLIENTLOG);
 	}
+	boinc_resolve_filename_s(DC_STDOUT, stdout_path);
+	startup_info.hStdOutput = win_fopen(stdout_path.c_str(), "w");
+    boinc_resolve_filename_s(DC_STDERR, stderr_path);
+    startup_info.hStdError = win_fopen(stderr_path.c_str(), "w");
+#else
+	if (stdout_filename != "") {
+		boinc_resolve_filename_s(stdout_filename.c_str(), stdout_path);
+		startup_info.hStdOutput = win_fopen(stdout_path.c_str(), "w");
+	}
+    if (stderr_filename != "") {
+        boinc_resolve_filename_s(stderr_filename.c_str(), stderr_path);
+        startup_info.hStdError = win_fopen(stderr_path.c_str(), "w");
+	} else {
+        startup_info.hStdError = win_fopen(STDERR_FILE, "a");
+    }
 #endif
     if (!CreateProcess(
         app_path.c_str(),
@@ -312,22 +319,49 @@ int TASK::run(int argct, char** argvt) {
 		// NOTE: if the application is restartable,
 		// we should deal with atomicity somehow
 		//
-		if (stdout_filename != "") {
-			boinc_resolve_filename_s(stdout_filename.c_str(), stdout_path);
-			stdout_file = freopen(stdout_path.c_str(), "w", stdout);
-			if (!stdout_file) return ERR_FOPEN;
-		}
 		if (stdin_filename != "") {
 			boinc_resolve_filename_s(stdin_filename.c_str(), stdin_path);
 			stdin_file = freopen(stdin_path.c_str(), "r", stdin);
 			if (!stdin_file) return ERR_FOPEN;
+		}
+#ifdef WANT_DCAPI
+		FILE *f;
+		if (f = boinc_fopen(CKPT_LABEL_OUT, "w+")) {
+			fprintf(f, "Empty: created by Launcher\n");
+			fclose(f);
+		} else {
+			fprintf(stderr, "Launcher: ERROR: Cannot create '%s'\n", CKPT_LABEL_OUT);
+		}
+		if (f = boinc_fopen(DC_LABEL_CLIENTLOG, "w+")) {
+			fprintf(f, "Empty: created by Launcher\n");
+			fclose(f);
+		} else {
+			fprintf(stderr, "Launcher: ERROR: Cannot create '%s'\n", DC_LABEL_CLIENTLOG);
+		}
+		boinc_resolve_filename_s(DC_STDOUT, stdout_path);
+		stdout_file = freopen(stdout_path.c_str(), "w", stdout);
+		if (!stdout_file) {
+			fprintf(stderr, "Launcher: ERROR: Cannot open '%s'\n", DC_STDOUT);
+			return ERR_FOPEN;
+		}
+		boinc_resolve_filename_s(DC_STDERR, stderr_path);
+        stderr_file = freopen(stderr_path.c_str(), "w", stderr);
+		if (!stderr_file) {
+			fprintf(stderr, "Launcher: ERROR: Cannot open '%s'\n", DC_STDERR);		
+			return ERR_FOPEN;
+		}
+#else
+		if (stdout_filename != "") {
+			boinc_resolve_filename_s(stdout_filename.c_str(), stdout_path);
+			stdout_file = freopen(stdout_path.c_str(), "w", stdout);
+			if (!stdout_file) return ERR_FOPEN;
 		}
         if (stderr_filename != "") {
             boinc_resolve_filename_s(stderr_filename.c_str(), stderr_path);
             stderr_file = freopen(stderr_path.c_str(), "w", stderr);
             if (!stderr_file) return ERR_FOPEN;
         }
-
+#endif
 		// construct argv
         // TODO: use malloc instead of stack var
         //

@@ -24,9 +24,9 @@
 #endif // _WIN32
 #ifdef WANT_DCAPI
 #include "dc_client.h"
-#else
-#include "boinc_api.h"
+//#else
 #endif // WANT_DCAPI
+#include "boinc_api.h"
 
 #include "gw_common.h"
 
@@ -74,7 +74,7 @@ int gw_put_file(char *filename, std::string text) {
 
 std::string gw_resolve_filename(const char *filename) {
 #ifdef WANT_DCAPI
-    std::string filename_resolved(DC_resolveFilename(DC_FILE_IN, filename));
+    std::string filename_resolved(DC_resolveFileName(DC_FILE_IN, filename));
 #else
     std::string filename_resolved;
     boinc_resolve_filename_s(filename, filename_resolved);
@@ -84,10 +84,55 @@ std::string gw_resolve_filename(const char *filename) {
 
 void gw_finish(int status) {
 #ifdef WANT_DCAPI
-    DC_finish(status);
+    DC_finishClient(status);
 #else
     boinc_finish(status);
 #endif        
 }
+
+#ifdef _WIN32
+// CreateProcess() takes HANDLEs for the stdin/stdout.
+// We need to use CreateFile() to get them.  Ugh.
+//
+HANDLE win_fopen(const char* path, const char* mode) {
+	SECURITY_ATTRIBUTES sa;
+	memset(&sa, 0, sizeof(sa));
+	sa.nLength = sizeof(sa);
+	sa.bInheritHandle = TRUE;
+
+	if (!strcmp(mode, "r")) {
+		return CreateFile(
+			path,
+			GENERIC_READ,
+			FILE_SHARE_READ,
+			&sa,
+			OPEN_EXISTING,
+			0, 0
+		);
+	} else if (!strcmp(mode, "w")) {
+		return CreateFile(
+			path,
+			GENERIC_WRITE,
+			FILE_SHARE_WRITE,
+			&sa,
+			OPEN_ALWAYS,
+			0, 0
+		);
+	} else if (!strcmp(mode, "a")) {
+		HANDLE hAppend = CreateFile(
+			path,
+			GENERIC_WRITE,
+			FILE_SHARE_WRITE,
+			&sa,
+			OPEN_ALWAYS,
+			0, 0
+		);
+        SetFilePointer(hAppend, 0, NULL, FILE_END);
+        return hAppend;
+	} else {
+		return 0;
+	}
+}
+#endif
 
 

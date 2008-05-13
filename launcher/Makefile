@@ -1,9 +1,3 @@
-# This should work on Linux.  Modify as needed for other platforms.
-
-# Do this first:
-# ln -s `g++ -print-file-name=libstdc++.a`
-# This creates a symbolic link to the C++ library,
-# which is linked statically
 
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')  
 ifneq (,$(findstring MINGW,$(uname_S)))
@@ -23,6 +17,7 @@ DCAPI_INCLUDE=\
 BOINC_DIR = c:/Projects/boinc_mingw
 BOINC_API_DIR = $(BOINC_DIR)
 BOINC_LIB_DIR = $(BOINC_DIR)
+BOINC_ZIP_DIR = $(BOINC_DIR)
 EXE_SUFFIX=.exe
 ## Options for Linux/ OS X
 else
