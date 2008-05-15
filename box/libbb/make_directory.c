@@ -30,7 +30,7 @@ int bb_make_directory (char *path, long mode, int flags)
 {
 	mode_t mask;
 	const char *fail_msg;
-	char *s = path,*s2;
+	char *s = path,*s2 = 0;
 	char c;
 	struct stat st;
 
@@ -56,7 +56,7 @@ int bb_make_directory (char *path, long mode, int flags)
 					s++;
 			}
 #else
-            /* bypass the first '/' if absolute path is provided */
+            /* bypass the '/'s at the begining (when absolute path is provided) */
 			if (s == path && *s && s[0] == '/') {
 				while (*s == '/')
 					s++;                
