@@ -130,12 +130,12 @@ RM = rm -f
 
 #setting DCAPI to "yes" will set BOINC to "yes" also
 BOINC=yes
-DCAPI=no
+DCAPI=yes
 
-DCAPI_HOME=../../dcapi_mingw/trunk
-#DCAPI_HOME=../../../dcapi/trunk/
-BOINC_HOME=C:/Projects/boinc_mingw/
-#BOINC_HOME=${HOME}/svn/boinc
+#DCAPI_HOME=../../dcapi_mingw/trunk
+DCAPI_HOME=/usr/local/dcapi-trunk/
+#BOINC_HOME=C:/Projects/boinc_mingw/
+BOINC_HOME=${HOME}/svn/boinc
 #only when comiling with mingw and BOINC is set to "yes"
 OPENSSL_DIR=C:/Projects/genwrapper/trunk/win32/openssl/
 
@@ -148,28 +148,28 @@ LAUNCHER_CFLAGS +=\
     -I$(DCAPI_HOME)/boinc
 LAUNCHER_LDFLAGS += \
     -L$(DCAPI_HOME) \
-    -ldcapi-client
+    -ldc-client-boinc
 else
 LAUNCHER_CFLAGS +=\
     -I$(DCAPI_HOME)/include\
     -I$(DCAPI_HOME)/boinc
 LAUNCHER_LDFLAGS += \
-    -L$(DCAPI_HOME) \
-    -ldcapi-client
+	-L$(DCAPI_HOME)/lib \
+	-ldc-client-boinc
 endif
 endif
 
 ifeq ($(BOINC),yes)
 LAUNCHER_CFLAGS += -DUSE_GLIBC_ERRNO
 LAUNCHER_LDFLAGS += -Lbox/ -lbox
-EXTRA_PROGRAMS += launcher$X
+EXTRA_PROGRAMS += gw_launcher$X
 ifeq ($(findstring mingw,$(TARGET)),mingw)
 OPENSSLDIR=$(OPENSSL_DIR)
 ALL_LDFLAGS +=-L$(BOINC_HOME) -lboinc  -lstdc++ -lwinmm
 ALL_CFLAGS += -I$(BOINC_HOME)/include -DBOINC 
 LAUNCHER_CFLAGS += -DWIN32 -D_WIN32 -D_MT -DNDEBUG -D_WINDOWS -DCLIENT -DNODB -D_CONSOLE -fexceptions
 else
-ALL_CFLAGS += -I$(BOINC_HOME)/api -I$(BOINC_HOME)/lib -DBOINC
+ALL_CFLAGS += -I$(BOINC_HOME)/api -I$(BOINC_HOME)/lib -DBOINC -DUSE_GLIBC_ERRNO
 ALL_LDFLAGS += -L$(BOINC_HOME)/api -lboinc_api -L$(BOINC_HOME)/lib -lboinc -lstdc++ -pthread
 endif
 endif
@@ -337,6 +337,13 @@ LAUNCHER_OBJS = \
 	launcher/gw_common.o \
 	launcher/task.o \
 	launcher/gw_launcher.o
+
+LAUNCHER_SOURCE = \
+	ctype.c quote.c usage.c \
+	run-command.c exec_cmd.c spawn-pipe.c \
+	launcher/gw_common.C \
+	launcher/task.C \
+	launcher/gw_launcher.C
 
 ifeq ($(BOINC),yes)
 BOX_OBJS += boinc/boinc.o
@@ -675,9 +682,12 @@ $(BOX_FILE): $(BOX_OBJS)
 gitbox$X: $(GIT_OBJS) $(BOX_FILE)
 	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $^ $(ALL_LDFLAGS) $(LIBS)
 
-launcher$X: $(LAUNCHER_OBJS) $(COMPAT_OBJS) $(BOX_FILE)
+gw_launcher$X: $(LAUNCHER_OBJS) $(COMPAT_OBJS) $(BOX_FILE)
 	#$(QUIET_LINK)
-	$(CC) $(ALL_CFLAGS) -o $@ $^ $(COMPAT_CFLAGS) $(ALL_LDFLAGS) $(LIBS) $(LAUNCHER_LDFLAGS) -lws2_32
+	$(CC) $(ALL_CFLAGS) $(LAUNCHER_CFLAGS) -o $@ $^ $(COMPAT_CFLAGS)  $(ALL_LDFLAGS) $(LIBS) $(LAUNCHER_LDFLAGS)  
+
+gw_launcher-clean:
+	$(RM) $(LAUNCHER_OBJS) gw_launcher$X
 
 ### Cleaning rules
 
