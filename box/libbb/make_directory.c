@@ -55,6 +55,12 @@ int bb_make_directory (char *path, long mode, int flags)
 				while (*s == '/')
 					s++;
 			}
+#else
+            /* bypass the first '/' if absolute path is provided */
+			if (s == path && *s && s[0] == '/') {
+				while (*s == '/')
+					s++;                
+            }
 #endif
 			/* Bypass leading non-'/'s and then subsequent '/'s. */
 			while (*s) {
