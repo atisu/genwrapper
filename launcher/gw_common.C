@@ -72,12 +72,12 @@ int gw_put_file(char *filename, std::string text) {
     return 0;
 }
 
-std::string gw_resolve_filename(const char *filename) {
+std::string gw_resolve_filename(std::string filename) {
 #ifdef WANT_DCAPI
-    std::string filename_resolved(DC_resolveFileName(DC_FILE_IN, filename));
+    std::string filename_resolved = DC_resolveFileName(DC_FILE_IN, filename.c_str());
 #else
     std::string filename_resolved;
-    boinc_resolve_filename_s(filename, filename_resolved);
+    boinc_resolve_filename_s(filename.c_str(), filename_resolved);
 #endif
     return filename_resolved;
 }

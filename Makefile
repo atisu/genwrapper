@@ -686,7 +686,7 @@ gw_launcher$X: $(LAUNCHER_OBJS) $(COMPAT_OBJS) $(BOX_FILE)
 	#$(QUIET_LINK)
 	$(CC) $(ALL_CFLAGS) $(LAUNCHER_CFLAGS) -o $@ $^ $(COMPAT_CFLAGS)  $(ALL_LDFLAGS) $(LIBS) $(LAUNCHER_LDFLAGS)  
 
-gw_launcher-clean:
+gw_launcher$X-clean:
 	$(RM) $(LAUNCHER_OBJS) gw_launcher$X
 
 ### Cleaning rules

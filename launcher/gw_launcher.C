@@ -140,7 +140,7 @@ int main(int argc, char** argv) {
 #endif
     std::string zip_filename(exe_filename);
     zip_filename.append(".zip");
-    std::string zip_filename_resolved(gw_resolve_filename(zip_filename.c_str()));
+    std::string zip_filename_resolved = gw_resolve_filename(zip_filename);
     gw_do_log("resolved zip filename is: %s\n", zip_filename_resolved.c_str());    
     if (gw_file_exist(zip_filename_resolved) != 0)
         gw_finish(255);
@@ -157,7 +157,7 @@ int main(int argc, char** argv) {
     std::string wu_script(argv[1]);
     if (gw_file_exist(wu_script) != 0)
         gw_finish(255);
-    std::string wu_script_resolved(gw_resolve_filename(wu_script.c_str()));
+    std::string wu_script_resolved(gw_resolve_filename(wu_script));
     if (gw_file_exist(wu_script_resolved) != 0)
         gw_finish(255);
     // create script file which execs profile and the wu supplied (argv[1]) script

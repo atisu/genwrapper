@@ -130,17 +130,17 @@ int TASK::run(int argct, char** argvt) {
         // we should deal with atomicity somehow
 	//
 	if (stdin_filename != "") {
-            stdin_path = gw_resolve_filename(stdin_filename.c_str());
+            stdin_path = gw_resolve_filename(stdin_filename);
             stdin_file = freopen(stdin_path.c_str(), "r", stdin);
             if (!stdin_file) return ERR_FOPEN;
 	}
 	if (stdout_filename != "") {
-            stdout_path = gw_resolve_filename(stdout_filename.c_str());
+            stdout_path = gw_resolve_filename(stdout_filename);
             stdout_file = freopen(stdout_path.c_str(), "w", stdout);
             if (!stdout_file) return ERR_FOPEN;
 	}
         if (stderr_filename != "") {
-            stderr_path = gw_resolve_filename(stderr_filename.c_str());
+            stderr_path = gw_resolve_filename(stderr_filename);
             stderr_file = freopen(stderr_path.c_str(), "w", stderr);
             if (!stderr_file) return ERR_FOPEN;
         }
