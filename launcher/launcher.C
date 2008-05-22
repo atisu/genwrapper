@@ -392,11 +392,15 @@ bool TASK::poll(int& status) {
     }
     if (!suspended) wall_cpu_time += POLL_PERIOD;
 #else
-    int wpid, stat;
+    int wpid, stat, wait_status;
     struct rusage ru;
 
-    wpid = wait4(pid, &status, WNOHANG, &ru);
+    wpid = wait4(pid, &wait_status, WNOHANG, &ru);
     if (wpid) {
+	if (WIFSIGNALED(wait_status))
+	    status = 255;
+	else
+	    status = WEXITSTATUS(wait_status);
         //final_cpu_time = (float)ru.ru_utime.tv_sec + ((float)ru.ru_utime.tv_usec)/1e+6;
         // trivial validator needs cpu_time > 0
 		final_cpu_time = 1;
