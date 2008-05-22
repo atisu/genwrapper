@@ -43,7 +43,6 @@ DONE - exit status ?
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include "procinfo.h"
 #endif // _WIN32
 #ifdef WANT_DCAPI
 #include "dc_client.h"
@@ -76,20 +75,8 @@ extern "C" {
 #endif
 
 int gw_unzip(std::string zip_filename) {
-    char **argv;
-    int argc_ = 3,
-        i,
-        result;
-    
-    argv = (char**) calloc(argc_, sizeof(char*)); 
-    argv[0] = strdup("unzip");
-    argv[1] = strdup("-o");
-    argv[2] = strdup(zip_filename.c_str());
-    result = unzip_main(argc_, argv);
-    for (i=0; i<argc_; i++)
-        	free(argv[i]);
-    free(argv);
-    return result;
+    const char *argv[] = { "unzip", "-o", zip_filename.c_str(), 0 };
+    return unzip_main(sizeof(argv) / sizeof(argv[0]) - 1, (char **)argv);
 }
 
 void send_status_message(TASK& task, double frac_done) {
@@ -162,9 +149,9 @@ int main(int argc, char** argv) {
         gw_finish(255);
     // create script file which execs profile and the wu supplied (argv[1]) script
     std::ostringstream exec_script;
-    exec_script << "set +e\n" \
-        << ". ./" << PROFILE_SCRIPT << "\n" \
-        << "sh ./" << wu_script_resolved << " $@\n" \
+    exec_script << "set +e\n"
+        << "if [ -r ./" PROFILE_SCRIPT " ]; then . ./" PROFILE_SCRIPT "; fi\n"
+        << "sh ./" << wu_script_resolved << " \"$@\"\n"
         // script exits with exit status of the wu script
         << "exit $? \n";    
     if (gw_put_file(EXEC_SCRIPT, exec_script.str()) != 0) {

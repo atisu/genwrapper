@@ -132,10 +132,10 @@ RM = rm -f
 BOINC=yes
 DCAPI=yes
 
-#DCAPI_HOME=../../dcapi_mingw/trunk
-DCAPI_HOME=/usr/local/dcapi-trunk/
-#BOINC_HOME=C:/Projects/boinc_mingw/
-BOINC_HOME=${HOME}/svn/boinc
+DCAPI_CFLAGS=`pkg-config --cflags dcapi-boinc-client`
+DCAPI_LIBS=`pkg-config --libs dcapi-boinc-client`
+BOINC_CFLAGS=-I/usr/include/BOINC
+BOINC_LIBS=-lboinc_api -lboinc -lcrypto -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lpthread -lm
 #only when comiling with mingw and BOINC is set to "yes"
 OPENSSL_DIR=C:/Projects/genwrapper/trunk/win32/openssl/
 
@@ -145,17 +145,12 @@ LAUNCHER_CFLAGS += -DWANT_DCAPI
 ifeq ($(findstring mingw,$(TARGET)),mingw)
 LAUNCHER_CFLAGS +=\
     -I$(DCAPI_HOME)/include\
-    -I$(DCAPI_HOME)/boinc
 LAUNCHER_LDFLAGS += \
     -L$(DCAPI_HOME) \
     -ldc-client-boinc
 else
-LAUNCHER_CFLAGS +=\
-    -I$(DCAPI_HOME)/include\
-    -I$(DCAPI_HOME)/boinc
-LAUNCHER_LDFLAGS += \
-	-L$(DCAPI_HOME)/lib \
-	-ldc-client-boinc
+LAUNCHER_CFLAGS += $(DCAPI_CFLAGS)
+LAUNCHER_LDFLAGS += $(DCAPI_LIBS)
 endif
 endif
 
@@ -165,12 +160,12 @@ LAUNCHER_LDFLAGS += -Lbox/ -lbox
 EXTRA_PROGRAMS += gw_launcher$X
 ifeq ($(findstring mingw,$(TARGET)),mingw)
 OPENSSLDIR=$(OPENSSL_DIR)
-ALL_LDFLAGS +=-L$(BOINC_HOME) -lboinc  -lstdc++ -lwinmm
-ALL_CFLAGS += -I$(BOINC_HOME)/include -DBOINC 
+ALL_LDFLAGS += $(BOINC_LIBS) -lwinmm
+ALL_CFLAGS += $(BOINC_CFLAGS) -DBOINC 
 LAUNCHER_CFLAGS += -DWIN32 -D_WIN32 -D_MT -DNDEBUG -D_WINDOWS -DCLIENT -DNODB -D_CONSOLE -fexceptions
 else
-ALL_CFLAGS += -I$(BOINC_HOME)/api -I$(BOINC_HOME)/lib -DBOINC -DUSE_GLIBC_ERRNO
-ALL_LDFLAGS += -L$(BOINC_HOME)/api -lboinc_api -L$(BOINC_HOME)/lib -lboinc -lstdc++ -pthread
+ALL_CFLAGS += $(BOINC_CFLAGS) -DBOINC -DUSE_GLIBC_ERRNO
+ALL_LDFLAGS += $(BOINC_LIBS)
 endif
 endif
 

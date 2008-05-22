@@ -26,7 +26,7 @@
 
 int gw_file_exist(std::string filename);
 int gw_file_exist(const char *filename);
-int gw_put_file(char *filename, std::string text);
+int gw_put_file(const char *filename, std::string text);
 std::string gw_resolve_filename(std::string filename);
 void gw_finish(int status);
 #ifdef _WIN32

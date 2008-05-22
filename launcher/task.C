@@ -20,6 +20,7 @@
 //
 
 #include <stdio.h>
+#include <errno.h>
 #include <vector>
 #include <string>
 #ifdef _WIN32
@@ -27,7 +28,6 @@
 #else
 #include <unistd.h>
 #include <sys/wait.h>
-#include "procinfo.h"
 #endif
 #include "common.h"
 #ifdef WANT_DCAPI
@@ -110,7 +110,7 @@ int TASK::run(int argct, char** argvt) {
     wall_cpu_time = 0;
 #else
     int retval, argc;
-    char progname[256], buf[256];
+    char buf[256];
     char* argv[256];
     char arglist[4096];
 	FILE* stdout_file;
@@ -158,7 +158,7 @@ int TASK::run(int argct, char** argvt) {
         setpriority(PRIO_PROCESS, 0, PROCESS_IDLE_PRIORITY);
         */
         retval = execv(buf, argv);
-        gw_do_log("ERROR: could not exec('%s %s %s %s..')", argv[0], argv[1], argv[2], argv[3]);
+        gw_do_log("ERROR: could not execute '%s': %s", argv[0], strerror(errno));
         exit(ERR_EXEC);
     }
 #endif
@@ -179,7 +179,7 @@ bool TASK::poll(int& status) {
     }
     if (!suspended) wall_cpu_time += POLL_PERIOD;
 #else
-    int wpid, stat;
+    int wpid;
     struct rusage ru;
 
     wpid = wait4(pid, &status, WNOHANG, &ru);
