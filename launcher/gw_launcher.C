@@ -139,8 +139,6 @@ int main(int argc, char** argv) {
     }
     if (gw_file_exist(GENWRAPPER_EXE) != 0)
         gw_finish(255);
-    if (gw_file_exist(PROFILE_SCRIPT) != 0)
-        gw_finish(255);
     std::string wu_script(argv[1]);
     if (gw_file_exist(wu_script) != 0)
         gw_finish(255);
