@@ -155,6 +155,10 @@ int main(int argc, char** argv) {
     if (gw_put_file(EXEC_SCRIPT, exec_script.str()) != 0) {
         gw_do_log("ERROR: error creating main script ('%s')", EXEC_SCRIPT);
     }
+
+    // Mark the interpreter as executable
+    chmod(GENWRAPPER_EXE, 0755);
+
     // create task
     TASK gw_task;
     gw_task.interpreter = GENWRAPPER_EXE;
