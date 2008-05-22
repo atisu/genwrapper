@@ -171,7 +171,7 @@ int main(int argc, char** argv) {
         int status;
         if (gw_task.poll(status)) {
             if (status) {
-                gw_do_log("app error: 0x%d\n", status);
+                gw_do_log("app error: %d\n", status);
                 gw_finish(status);
             }
             break;
