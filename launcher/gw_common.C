@@ -34,7 +34,8 @@ std::string gw_resolve_filename(const char *filename) {
     std::string filename_resolved;
 #ifdef WANT_DCAPI
     char *tmp = DC_resolveFileName(DC_FILE_IN, filename);
-    filename_resolved = tmp;
+    if (tmp)
+	filename_resolved = tmp;
     free(tmp);
 #else
     boinc_resolve_filename_s(filename, filename_resolved);
