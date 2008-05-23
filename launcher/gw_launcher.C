@@ -135,7 +135,7 @@ int main(int argc, char** argv) {
     }
     std::string wu_script_resolved(gw_resolve_filename(wu_script));
     if (gw_file_exist(wu_script_resolved) != 0) {
-        gw_do_log(LOG_ERR, "cannot resolve work unit supplied script name ('%s' => '%s')", wu_script.c_str().
+        gw_do_log(LOG_ERR, "cannot resolve work unit supplied script name ('%s' => '%s')", wu_script.c_str(),
             wu_script_resolved.c_str());
         gw_finish(255);        
     }
