@@ -59,6 +59,51 @@ typedef union {
 	} formatted ATTRIBUTE_PACKED;
 } zip_header_t; /* ATTRIBUTE_PACKED - gcc 4.2.1 doesn't like it (spews warning) */
 
+#define ZIP_CD_HEADER_LEN 42
+
+typedef union {
+	uint8_t raw[ZIP_CD_HEADER_LEN];
+	struct {
+        uint16_t made_by;                       /* 0-1 */
+        uint16_t version;                       /* 2-3 */
+        uint16_t flags;                         /* 4-5 */
+        uint16_t compression;                   /* 6-7 */
+		uint16_t modtime;                       /* 8-9 */
+		uint16_t moddate;                       /* 10-11 */
+		uint32_t crc32 ATTRIBUTE_PACKED;        /* 12-15 */
+		uint32_t cmpsize ATTRIBUTE_PACKED;      /* 16-19 */
+		uint32_t ucmpsize ATTRIBUTE_PACKED;     /* 20-23 */
+		uint16_t filename_len;                  /* 24-25 */
+		uint16_t extra_len;                     /* 26-27 */
+        uint16_t file_comment_len;              /* 28-29 */
+        uint16_t disk_num_start;                /* 30-31 */
+        uint16_t internal_file_attr;            /* 32-33 */
+        uint32_t external_file_attr;            /* 34-37 */
+        uint32_t relative_offset_local_header;  /* 38-41 */
+        /* file name (variable size) */
+        /* extra field (variable size) */
+        /* file comment (variable size) */
+        
+    } formatted ATTRIBUTE_PACKED;
+} zip_cd_header_t;
+
+typedef union {
+    uint16_t raw;
+    struct {
+        unsigned other_x : 1;
+        unsigned other_w : 1;
+        unsigned other_r : 1;
+        unsigned group_x : 1;
+        unsigned group_w : 1;
+        unsigned group_r : 1;
+        unsigned user_x : 1;
+        unsigned user_w : 1;
+        unsigned user_r : 1;
+        unsigned not_used : 7;
+    } formatted;
+} unix_permissions_t;
+
+
 /* Check the offset of the last element, not the length.  This leniency
  * allows for poor packing, whereby the overall struct may be too long,
  * even though the elements are all in the right place.
@@ -128,6 +173,10 @@ int unzip_main(int argc, char **argv)
 	enum { O_PROMPT, O_NEVER, O_ALWAYS };
 
 	zip_header_t zip_header;
+	zip_cd_header_t zip_cd_header;
+    unix_permissions_t f_permissions;
+	
+    smallint file_permissions = 0;
 	smallint verbose = 1;
 	smallint listing = 0;
 	smallint overwrite = O_PROMPT;
@@ -146,7 +195,7 @@ int unzip_main(int argc, char **argv)
 	struct stat stat_buf;
 
 	/* '-' makes getopt return 1 for non-options */
-	while ((opt = getopt(argc, argv, "-d:lnopqx")) != -1) {
+	while ((opt = getopt(argc, argv, "-d:lnopqxX")) != -1) {
 		switch (opt_range) {
 		case 0: /* Options */
 			switch (opt) {
@@ -168,7 +217,11 @@ int unzip_main(int argc, char **argv)
 			case 'q': /* Be quiet */
 				verbose = 0;
 				break;
-
+            
+            case 'X': /* restore file permissions when possible */
+                file_permissions = 1;
+                break;
+                
 			case 1: /* The zip file */
 				/* +5: space for ".zip" and NUL */
 				src_fn = xmalloc(strlen(optarg) + 5);
@@ -255,11 +308,31 @@ int unzip_main(int argc, char **argv)
 	total_entries = 0;
 	while (1) {
 		uint32_t magic;
-
 		/* Check magic number */
 		xread(src_fd, &magic, 4);
-		if (magic == ZIP_CDS_MAGIC)
+		if (magic == ZIP_CDS_MAGIC) {
+#ifdef _WIN32
 			break;
+#else
+            if (file_permissions) {
+    		    xread(src_fd, zip_cd_header.raw, ZIP_CD_HEADER_LEN);
+    		    // FIX_ENDIANNESS ??
+    		    f_permissions.raw = zip_cd_header.formatted.external_file_attr;
+                f_permissions.formatted.not_used = 0;
+        		free(dst_fn);
+        		dst_fn = xzalloc(zip_header.formatted.filename_len + 1);
+                xread(src_fd, dst_fn, zip_cd_header.formatted.filename_len);
+                chmod(dst_fn, f_permissions.raw);
+                lseek(src_fd, zip_cd_header.formatted.extra_len + 
+                    zip_cd_header.formatted.file_comment_len, SEEK_CUR);
+                continue;
+            }
+			break;
+#endif
+		}
+		if (magic == ZIP_CDS_END_MAGIC) {
+            break;
+		}		
 		if (magic != ZIP_FILEHEADER_MAGIC)
 			bb_error_msg_and_die("invalid zip magic %08X", magic);
 

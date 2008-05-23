@@ -4265,6 +4265,7 @@
      "\n	-p	Send output to stdout" \
      "\n	-q	Quiet" \
      "\n	-x	Exclude these files" \
+	 "\n	-X	Restore file permissions when possible" \
      "\n	-d	Extract files into this directory" \
 
 #define uptime_trivial_usage \
