@@ -20,8 +20,6 @@
  * Zip64 + other methods
  * Improve handling of zip format, ie.
  * - deferred CRC, comp. & uncomp. lengths (zip header flags bit 3)
- * - unix file permissions, etc.
- * - central directory
  */
 
 #include "libbb.h"
@@ -82,8 +80,7 @@ typedef union {
         uint32_t relative_offset_local_header;  /* 38-41 */
         /* file name (variable size) */
         /* extra field (variable size) */
-        /* file comment (variable size) */
-        
+        /* file comment (variable size) */        
     } formatted ATTRIBUTE_PACKED;
 } zip_cd_header_t;
 
