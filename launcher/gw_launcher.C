@@ -16,20 +16,6 @@
 // or write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-/*
-TODO:
-
-DONE - unzip %BASENAME%
-- checkpoint (never unzip twice)
-DONE - exec profile script
-DONE - exec wu script (1st argv - needs to be resolved)
-- handle signals
-DONE - exit status ?
-- should work with DC-API
-- should work on WINDOWS (using MINGW)
-- test via BOINC
-*/
-
 #include <stdio.h>
 #include <libgen.h>
 #include <vector>
@@ -116,7 +102,7 @@ int main(int argc, char** argv) {
     boinc_init_options(&options);
 #endif
     if (argc<2) {
-        gw_do_log("ERROR: wu supplied shell script name (command line argument 1) is missing");
+        gw_do_log(LOG_ERR, "wu supplied shell script name (command line argument 1) is missing");
         gw_finish(255);
     }
     std::string exe_filename(basename(argv[0]));
@@ -128,32 +114,42 @@ int main(int argc, char** argv) {
     std::string zip_filename(exe_filename);
     zip_filename.append(".zip");
     std::string zip_filename_resolved = gw_resolve_filename(zip_filename);
-    gw_do_log("resolved zip filename is: %s\n", zip_filename_resolved.c_str());    
-    if (gw_file_exist(zip_filename_resolved) != 0)
-        gw_finish(255);
-    result = gw_unzip(zip_filename_resolved);
-    if (result != 0 ) {
-        gw_do_log("ERROR: something went wrong during unzipping ('%s')",
-         zip_filename_resolved.c_str());
-        gw_finish(255);
+    gw_do_log(LOG_INFO, "resolved zip filename is: %s\n", zip_filename_resolved.c_str());    
+    // if 
+    if (gw_file_exist(zip_filename_resolved) == 0) {
+        result = gw_unzip(zip_filename_resolved);
+        if (result != 0 ) {
+            gw_do_log(LOG_ERR, "something went wrong during unzipping ('%s')",
+             zip_filename_resolved.c_str());
+            gw_finish(255);
+        }
     }
-    if (gw_file_exist(GENWRAPPER_EXE) != 0)
-        gw_finish(255);
+    if (gw_file_exist(GENWRAPPER_EXE) != 0) {
+        gw_do_log(LOG_ERR, "wrapper executable does not exist ('%s')", GENWRAPPER_EXE);
+        gw_finish(255);        
+    }
     std::string wu_script(argv[1]);
-    if (gw_file_exist(wu_script) != 0)
-        gw_finish(255);
+    if (gw_file_exist(wu_script) != 0) {
+        gw_do_log(LOG_ERR, "work unit supplied script does not exist ('%s')", wu_script.c_str());
+        gw_finish(255);        
+    }
     std::string wu_script_resolved(gw_resolve_filename(wu_script));
-    if (gw_file_exist(wu_script_resolved) != 0)
-        gw_finish(255);
+    if (gw_file_exist(wu_script_resolved) != 0) {
+        gw_do_log(LOG_ERR, "cannot resolve work unit supplied script name ('%s' => '%s')", wu_script.c_str().
+            wu_script_resolved.c_str());
+        gw_finish(255);        
+    }
     // create script file which execs profile and the wu supplied (argv[1]) script
     std::ostringstream exec_script;
     exec_script << "set +e\n"
+        // profile script is optional
         << "if [ -r ./" PROFILE_SCRIPT " ]; then . ./" PROFILE_SCRIPT "; fi\n"
         << "sh ./" << wu_script_resolved << " \"$@\"\n"
         // script exits with exit status of the wu script
         << "exit $? \n";    
     if (gw_put_file(EXEC_SCRIPT, exec_script.str()) != 0) {
-        gw_do_log("ERROR: error creating main script ('%s')", EXEC_SCRIPT);
+        gw_do_log(LOG_ERR, "error creating main script ('%s')", EXEC_SCRIPT);
+        gw_finish(255);
     }
 
     // Mark the interpreter as executable
@@ -171,7 +167,7 @@ int main(int argc, char** argv) {
         int status;
         if (gw_task.poll(status)) {
             if (status) {
-                gw_do_log("app error: %d\n", status);
+                gw_do_log(LOG_ERR, "'%s' exited with error: %d\n", GENWRAPPER_EXE, status);
                 gw_finish(status);
             }
             break;

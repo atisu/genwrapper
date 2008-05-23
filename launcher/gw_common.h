@@ -18,11 +18,15 @@
 
 #include <string>
 
-#define gw_do_log(FORMAT, ...) \
+#ifndef WANT_DCAPI
+#define gw_do_log(LEVEL, FORMAT, ...) \
     fprintf(stderr, "%s[%d]::%s(): ", __FILE__, __LINE__, __FUNCTION__); \
     fprintf(stderr, FORMAT, ## __VA_ARGS__); \
     fprintf(stderr, "\n"); \
     fflush(stderr);
+#else
+#define gw_do_log(LEVEL, FORMAT, ...) DC_log(LEVEL, FORMAT, ## __VA_ARGS__);
+#endif
 
 int gw_file_exist(std::string filename);
 int gw_file_exist(const char *filename);

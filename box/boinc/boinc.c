@@ -22,35 +22,35 @@
 #include "boinc_api.h"
 #include "common.h"
 
-int boinc_resolve_filename_(const char* filename) {
+static int resolve_filename(const char* filename) {
     char buf[PATH_MAX];
     int result;
     result = boinc_resolve_filename(filename, buf, PATH_MAX-1);
     fprintf(stdout, "%s", buf);
-    //fprintf(stderr, "boinc_resolve_filename('%s','%s') called\n", filename, buf);
     return result;
 }
 
-int boinc_fraction_done_(double fraction) {
+static int fraction_done(double fraction) {
     return boinc_fraction_done(fraction);
 }
 
-int boinc_fraction_done_percent_(int fraction) {
+static int fraction_done_percent(int fraction) {
     double d_fraction = fraction / 100.00;
     FILE *f = fopen(FILE_FRACTION_DONE, "w+");
 	if (!f)
 		return false;
-	fprintf(f,"%lf", d_fraction);
+	fprintf(f, "%lf", d_fraction);
 	fclose(f);
 	return true;
 }
 
 
-int boinc_finish_(int status) {
+// not used.
+int finish(int status) {
     return boinc_finish(status);
 }
 
-int boinc_init_() {
+int init() {
     return 0;
 }
 
@@ -73,10 +73,10 @@ int boinc_main(int argc, char **argv)
             fprintf(stderr,"ERROR: missing parameter for resolve_filename\n");
             return retval;
         }
-        boinc_resolve_filename_(argv[2]);
+        resolve_filename(argv[2]);
     } else if (strcmp(argv[1], "fraction_done_percent")==0) {
         if (argc<=2) {
-            fprintf(stderr,"ERROR: missing parameter for fraction_done\n");
+            fprintf(stderr, "ERROR: missing parameter for fraction_done\n");
             return retval;
         }
         errno=0;
@@ -85,8 +85,7 @@ int boinc_main(int argc, char **argv)
             fprintf(stderr,"ERROR: invalid parameter for fraction_done ('%s'->%d)\n", argv[2], fraction);
             return retval;            
         }
-        boinc_fraction_done_percent_(fraction);
-        //fprintf(stderr,"fraction_done_percent called with fraction==%d\n", fraction);                
+        fraction_done_percent(fraction);
     } else if (strcmp(argv[1], "fraction_done")==0) {
         if (argc<=2) {
             fprintf(stderr,"ERROR: missing parameter for fraction_done\n");
@@ -98,20 +97,18 @@ int boinc_main(int argc, char **argv)
             fprintf(stderr,"ERROR: invalid parameter for fraction_done_percent ('%s'->%lf)\n", argv[2], d_fraction);
             return retval;            
         }
-        boinc_fraction_done_(d_fraction);
-        //fprintf(stderr,"fraction_done called with fraction==%lf\n", d_fraction);                
+        fraction_done(d_fraction);
     } else if (strcmp(argv[1], "finish")==0) {
         if (argc<=2) {
             fprintf(stderr,"ERROR: missing parameter for finish\n");
             return retval;
         }
-        errno=0;
+        errno = 0;
         status = strtol(argv[2], &endptr, 10);
         if (errno!=0 || argv[2]==endptr) {
             fprintf(stderr,"ERROR: invalid parameter for finish ('%s'->%d)\n", argv[2], status);
             return retval;            
         }
-        //fprintf(stderr,"boinc_finish(%d) called\n", status);
 		exit(status);
 	} else if (strcmp(argv[1], "init")==0) {
 		// nothing here yet.
