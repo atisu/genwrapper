@@ -29,7 +29,6 @@ struct TASK {
     string stdin_filename;
     string stdout_filename;
     string stderr_filename;
-    string command_line;
     string interpreter;
     string script;
     double final_cpu_time;

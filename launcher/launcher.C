@@ -66,8 +66,8 @@
 #ifdef WANT_DCAPI
 #define CKPT_LABEL_IN		"dc_ckpt_in"
 #define CKPT_LABEL_OUT		"dc_ckpt_out"
-#define DC_STDERR			"dc_stderr.txt"
-#define DC_STDOUT			"dc_stdout.txt"
+#define DC_STDERR		"dc_stderr.txt"
+#define DC_STDOUT		"dc_stdout.txt"
 #endif
 
 using std::vector;
@@ -81,11 +81,11 @@ struct TASK {
     string command_line;
     double final_cpu_time;
     double starting_cpu;
-        // how much CPU time was used by tasks before this in the job file
+    // how much CPU time was used by tasks before this in the job file
 #ifdef _WIN32
     bool suspended;
     double wall_cpu_time;
-        // for estimating CPU time on Win98/ME
+    // for estimating CPU time on Win98/ME
     HANDLE pid_handle;
     HANDLE thread_handle;
 #else

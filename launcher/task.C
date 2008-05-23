@@ -31,7 +31,8 @@
 #endif
 #include "common.h"
 #ifdef WANT_DCAPI
-#endif
+#include "dc_client.h"
+#endif // WANT_DCAPI
 #include "str_util.h"
 #include "util.h"
 #include "error_numbers.h"
@@ -53,29 +54,26 @@ int TASK::run(int argct, char** argvt) {
     script_path = script;
     app_path = interpreter_path;
 
-    // append wrapper's command-line arguments to those in the job file.
-    //
-    for (int i=2; i<argct; i++){
-        command_line += argvt[i];
-        if ((i+1) < argct){
-            command_line += string(" ");
-        }
-    }
-
 #ifdef _WIN32
     PROCESS_INFORMATION process_info;
     STARTUPINFO startup_info;
-    string command;
 
     memset(&process_info, 0, sizeof(process_info));
     memset(&startup_info, 0, sizeof(startup_info));
-    command = app_path+ string(" sh ")+ script_path+ 
-        string(" ")+ command_line;
+
+    // append wrapper's command-line arguments to those in the job file.
+    string command = app_path + " sh " + script_path + " ";
+    for (int i=0; i < argct; i++){
+        command += argvt[i];
+        if ((i+1) < argct){
+            command += string(" ");
+        }
+    }
 
     // pass std handles to app
     //
     startup_info.dwFlags = STARTF_USESTDHANDLES;
-    if (stdin_filename != "") {
+    if (stdin_filename.length()) {
         stdin_path = gw_resolve_filename(stdin_filename.c_str());
 	startup_info.hStdInput = win_fopen(stdin_path.c_str(), "r");
     }
@@ -109,17 +107,11 @@ int TASK::run(int argct, char** argvt) {
     suspended = false;
     wall_cpu_time = 0;
 #else
-    int retval, argc;
     char buf[256];
-    char* argv[256];
-    char arglist[4096];
-	FILE* stdout_file;
-	FILE* stdin_file;
-	FILE* stderr_file;
 
     pid = fork();
     if (pid == -1) {
-        gw_do_log("ERROR: fork() failed");
+        gw_do_log(LOG_ERR, "fork() failed: %s", strerror(errno));
         gw_finish(ERR_FORK);
     }
     if (pid == 0) {
@@ -130,35 +122,30 @@ int TASK::run(int argct, char** argvt) {
         // we should deal with atomicity somehow
 	//
 	if (stdin_filename != "") {
-            stdin_path = gw_resolve_filename(stdin_filename);
-            stdin_file = freopen(stdin_path.c_str(), "r", stdin);
-            if (!stdin_file) return ERR_FOPEN;
+            stdin_path = gw_resolve_filename(stdin_filename.c_str());
+            if (!freopen(stdin_path.c_str(), "r", stdin))
+		return ERR_FOPEN;
 	}
 	if (stdout_filename != "") {
-            stdout_path = gw_resolve_filename(stdout_filename);
-            stdout_file = freopen(stdout_path.c_str(), "w", stdout);
-            if (!stdout_file) return ERR_FOPEN;
+            stdout_path = gw_resolve_filename(stdout_filename.c_str());
+            if (!freopen(stdout_path.c_str(), "w", stdout))
+		return ERR_FOPEN;
 	}
         if (stderr_filename != "") {
-            stderr_path = gw_resolve_filename(stderr_filename);
-            stderr_file = freopen(stderr_path.c_str(), "w", stderr);
-            if (!stderr_file) return ERR_FOPEN;
+            stderr_path = gw_resolve_filename(stderr_filename.c_str());
+            if (!freopen(stderr_path.c_str(), "w", stderr))
+		return ERR_FOPEN;
         }
-		// construct argv
-        // TODO: use malloc instead of stack var
-        //
-        strcpy(buf, interpreter_path.c_str());
-        argv[0] = buf; 
-        argv[1] = strdup("sh");
-        argv[2] = (char *)script_path.c_str();        
-        strncpy(arglist, command_line.c_str(), sizeof(arglist));
-        argc = parse_command_line(arglist, argv+3);
-        /*
-        fprintf(stderr, "wrapper: running %s %s %s (%s)\n", argv[0], argv[1], argv[2], arglist);
-        setpriority(PRIO_PROCESS, 0, PROCESS_IDLE_PRIORITY);
-        */
-        retval = execv(buf, argv);
-        gw_do_log("ERROR: could not execute '%s': %s", argv[0], strerror(errno));
+
+	char **argv = (char **)malloc(sizeof(*argv) * argct + 2);
+	argv[0] = "sh";
+	int i;
+	for (i = 1; i < argct; i++)
+		argv[i] = argvt[i - 1];
+	argv[i] = 0;
+
+        execv(buf, argv);
+        gw_do_log(LOG_ERR, "Could not execute '%s': %s", argv[0], strerror(errno));
         exit(ERR_EXEC);
     }
 #endif

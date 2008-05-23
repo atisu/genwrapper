@@ -20,7 +20,8 @@
 #include <libgen.h>
 #include <vector>
 #include <string>
-#include <sstream>
+#include <iostream>
+#include <fstream>
 #include <errno.h>
 #ifdef _WIN32
 #include "boinc_win.h"
@@ -52,18 +53,13 @@ extern "C" {
 #else
 #define GENWRAPPER_EXE  "./gitbox"
 #endif // _WIN32
-#define PROFILE_SCRIPT  "profile"
+#define PROFILE_SCRIPT  "profile.sh"
 #define EXEC_SCRIPT     "gw_tmp.sh"
 #define POLL_PERIOD 1.0
 
 #ifndef _MAX_PATH
 #define _MAX_PATH 255
 #endif
-
-int gw_unzip(std::string zip_filename) {
-    const char *argv[] = { "unzip", "-o", zip_filename.c_str(), 0 };
-    return unzip_main(sizeof(argv) / sizeof(argv[0]) - 1, (char **)argv);
-}
 
 void send_status_message(TASK& task, double frac_done) {
     boinc_report_app_status(
@@ -88,9 +84,9 @@ double read_fraction_done(void) {
 
 
 
-int main(int argc, char** argv) {
+int main(int argc, char* argv[]) {
     double frac_done = 0.0; 
-    int result;
+
 #ifdef WANT_DCAPI
     DC_initClient();
 #else
@@ -101,59 +97,55 @@ int main(int argc, char** argv) {
     options.handle_process_control = true;
     boinc_init_options(&options);
 #endif
-    if (argc<2) {
-        gw_do_log(LOG_ERR, "wu supplied shell script name (command line argument 1) is missing");
-        gw_finish(255);
-    }
-    std::string exe_filename(basename(argv[0]));
+
+    if (argc < 2)
+        gw_do_log(LOG_WARNING, "Warging: no script listed on the command line");
+
+    // Look for & unzip the .zip archive, if any
+    std::string filename(basename(argv[0]));
 #ifdef _WIN32
-    int loc = exe_filename.rfind(".exe", exe_filename.length());
-    if (loc == exe_filename.length()-4)
-        exe_filename.erase(loc);
+    if (filename.compare(filename.length() - 4, 4, ".exe"))
+        filename.erase(filename.length() - 4);
 #endif
-    std::string zip_filename(exe_filename);
-    zip_filename.append(".zip");
-    std::string zip_filename_resolved = gw_resolve_filename(zip_filename);
-    gw_do_log(LOG_INFO, "resolved zip filename is: %s\n", zip_filename_resolved.c_str());    
-    // if 
-    if (gw_file_exist(zip_filename_resolved) == 0) {
-        result = gw_unzip(zip_filename_resolved);
-        if (result != 0 ) {
-            gw_do_log(LOG_ERR, "something went wrong during unzipping ('%s')",
-             zip_filename_resolved.c_str());
+    filename.append(".zip");
+    std::string zip_filename_resolved = gw_resolve_filename(filename.c_str());
+    if (!access(zip_filename_resolved.c_str(), R_OK)) {
+	const char *zip_argv[] = {
+	    "unzip", "-o", zip_filename_resolved.c_str(), 0
+	};
+	const int zip_argc = sizeof(zip_argv) / sizeof(zip_argv[0]) - 1;
+
+	gw_do_log(LOG_INFO, "Unzipping '%s'", filename.c_str());
+	if (unzip_main(zip_argc, (char **)zip_argv)) {
+            gw_do_log(LOG_ERR, "Failed to unzip '%s'", zip_filename_resolved.c_str());
             gw_finish(255);
         }
     }
-    if (gw_file_exist(GENWRAPPER_EXE) != 0) {
-        gw_do_log(LOG_ERR, "wrapper executable does not exist ('%s')", GENWRAPPER_EXE);
+
+    // Check for the interpreter
+    if (access(GENWRAPPER_EXE, R_OK)) {
+        gw_do_log(LOG_ERR, "Wrapper executable '%s' does not exist", GENWRAPPER_EXE);
         gw_finish(255);        
     }
-    std::string wu_script(argv[1]);
-    if (gw_file_exist(wu_script) != 0) {
-        gw_do_log(LOG_ERR, "work unit supplied script does not exist ('%s')", wu_script.c_str());
+    chmod(GENWRAPPER_EXE, 0755);
+
+    const char *wu_script = argv[1];
+    if (access(wu_script, R_OK)) {
+        gw_do_log(LOG_ERR, "Script '%s' does not exist", wu_script);
         gw_finish(255);        
-    }
-    std::string wu_script_resolved(gw_resolve_filename(wu_script));
-    if (gw_file_exist(wu_script_resolved) != 0) {
-        gw_do_log(LOG_ERR, "cannot resolve work unit supplied script name ('%s' => '%s')", wu_script.c_str(),
-            wu_script_resolved.c_str());
-        gw_finish(255);        
-    }
-    // create script file which execs profile and the wu supplied (argv[1]) script
-    std::ostringstream exec_script;
-    exec_script << "set +e\n"
-        // profile script is optional
-        << "if [ -r ./" PROFILE_SCRIPT " ]; then . ./" PROFILE_SCRIPT "; fi\n"
-        << "sh ./" << wu_script_resolved << " \"$@\"\n"
-        // script exits with exit status of the wu script
-        << "exit $? \n";    
-    if (gw_put_file(EXEC_SCRIPT, exec_script.str()) != 0) {
-        gw_do_log(LOG_ERR, "error creating main script ('%s')", EXEC_SCRIPT);
-        gw_finish(255);
     }
 
-    // Mark the interpreter as executable
-    chmod(GENWRAPPER_EXE, 0755);
+    // create script file which execs profile and the wu supplied (argv[1]) script
+    std::ofstream exec_script(EXEC_SCRIPT, std::ios::out);
+    exec_script << "set -e\n"
+        // profile script is optional
+        << "if [ -r ./" PROFILE_SCRIPT " ]; then . ./" PROFILE_SCRIPT "; fi\n"
+        << ". `boinc resolve_filename " << wu_script << "`\n";
+    exec_script.close();
+    if (exec_script.fail()) {
+	gw_do_log(LOG_ERR, "Failed to create the initialization script");
+	gw_finish(255);
+    }
 
     // create task
     TASK gw_task;
@@ -162,7 +154,7 @@ int main(int argc, char** argv) {
     gw_task.stdin_filename = "";
     gw_task.stdout_filename = "stdout.txt";
     gw_task.stderr_filename = "stderr.txt";
-    gw_task.run(argc, argv);
+    gw_task.run(argc, argv + 1);
     while(1) {
         int status;
         if (gw_task.poll(status)) {

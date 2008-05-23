@@ -30,54 +30,14 @@
 
 #include "gw_common.h"
 
-int gw_file_exist(std::string filename) {
-    int result;
-    struct stat stat_buf;
-    result = stat(filename.c_str(), &stat_buf);
-    int my_errno = errno;
-    if (result == -1) {
-        if (my_errno == ENOENT) {
-            gw_do_log("ERROR: file does not exist (%s)", filename.c_str());
-            return 255;
-        } else {
-            gw_do_log("ERROR: unknown error ('%s')", strerror(my_errno));
-            return 255;
-        }
-    }
-    return 0;
-}
-
-int gw_file_exist(const char *filename) {
-    std::string s_filename(filename);
-    return gw_file_exist(s_filename);
-}
-
-
-int gw_put_file(const char *filename, std::string text) {
-    int   retvalue;
-    FILE *newfile;
-
-    newfile = fopen(filename, "wt");
-    if (!newfile) {
-        gw_do_log("ERROR: error creating file (%s)", filename);
-        return 255;
-    }
-    retvalue = fwrite(text.c_str(), sizeof(char), strlen(text.c_str()), newfile);
-    fclose(newfile);
-    if (retvalue < (signed int)strlen(text.c_str())) {
-        gw_do_log("ERROR: %d bytes requested, %d bytes written",
-            (int)strlen(text.c_str()), retvalue);
-        return 255;    
-    }
-    return 0;
-}
-
-std::string gw_resolve_filename(std::string filename) {
-#ifdef WANT_DCAPI
-    std::string filename_resolved = DC_resolveFileName(DC_FILE_IN, filename.c_str());
-#else
+std::string gw_resolve_filename(const char *filename) {
     std::string filename_resolved;
-    boinc_resolve_filename_s(filename.c_str(), filename_resolved);
+#ifdef WANT_DCAPI
+    char *tmp = DC_resolveFileName(DC_FILE_IN, filename);
+    filename_resolved = tmp;
+    free(tmp);
+#else
+    boinc_resolve_filename_s(filename, filename_resolved);
 #endif
     return filename_resolved;
 }
