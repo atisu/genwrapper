@@ -42,9 +42,6 @@
 #define POLL_PERIOD 1.0
 
 int TASK::run(vector<string> &args) {
-    string stdout_path, 
-        stdin_path, 
-        stderr_path;
 
 #ifdef _WIN32
     PROCESS_INFORMATION process_info;
@@ -60,20 +57,6 @@ int TASK::run(vector<string> &args) {
     // pass std handles to app
     //
     startup_info.dwFlags = STARTF_USESTDHANDLES;
-    if (stdin_filename.length()) {
-        stdin_path = gw_resolve_filename(stdin_filename.c_str());
-	startup_info.hStdInput = win_fopen(stdin_path.c_str(), "r");
-    }
-    if (stdout_filename != "") {
-        stdout_path = gw_resolve_filename(stdout_filename.c_str());
-	startup_info.hStdOutput = win_fopen(stdout_path.c_str(), "w");
-    }
-    if (stderr_filename != "") {
-        stderr_path = gw_resolve_filename(stderr_filename.c_str());
-        startup_info.hStdError = win_fopen(stderr_path.c_str(), "w");
-    }/* else {
-        startup_info.hStdError = win_fopen(STDERR_FILE, "a");
-    }*/
     if (!CreateProcess(
         args[0].c_str(),
         (LPSTR)command.c_str(),
@@ -102,25 +85,9 @@ int TASK::run(vector<string> &args) {
     if (pid == 0) {
         // we're in the child process here
         //
-        // open stdout, stdin if file names are given
         // NOTE: if the application is restartable,
         // we should deal with atomicity somehow
 	//
-	if (stdin_filename != "") {
-            stdin_path = gw_resolve_filename(stdin_filename.c_str());
-            if (!freopen(stdin_path.c_str(), "r", stdin))
-		return ERR_FOPEN;
-	}
-	if (stdout_filename != "") {
-            stdout_path = gw_resolve_filename(stdout_filename.c_str());
-            if (!freopen(stdout_path.c_str(), "w", stdout))
-		return ERR_FOPEN;
-	}
-        if (stderr_filename != "") {
-            stderr_path = gw_resolve_filename(stderr_filename.c_str());
-            if (!freopen(stderr_path.c_str(), "w", stderr))
-		return ERR_FOPEN;
-        }
 
 	const char **argv = (const char **)malloc(sizeof(*argv) * args.size() + 1);
 	size_t i;

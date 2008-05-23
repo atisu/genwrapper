@@ -30,6 +30,3 @@
 
 std::string gw_resolve_filename(const char *filename);
 void gw_finish(int status);
-#ifdef _WIN32
-HANDLE win_fopen(const char* path, const char* mode);
-#endif
