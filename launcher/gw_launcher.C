@@ -111,7 +111,7 @@ int main(int argc, char* argv[]) {
     std::string zip_filename_resolved = gw_resolve_filename(filename.c_str());
     if (!access(zip_filename_resolved.c_str(), R_OK)) {
 	const char *zip_argv[] = {
-	    "unzip", "-o", zip_filename_resolved.c_str(), 0
+	    "unzip", "-o", "-X", zip_filename_resolved.c_str(), 0
 	};
 	const int zip_argc = sizeof(zip_argv) / sizeof(zip_argv[0]) - 1;
 
@@ -123,11 +123,11 @@ int main(int argc, char* argv[]) {
     }
 
     // Check for the interpreter
-    if (access(GENWRAPPER_EXE, R_OK)) {
-        gw_do_log(LOG_ERR, "Wrapper executable '%s' does not exist", GENWRAPPER_EXE);
+    if (access(GENWRAPPER_EXE, X_OK)) {
+        gw_do_log(LOG_ERR, "Wrapper executable '%s' is not executable: %s",
+		GENWRAPPER_EXE, strerror(errno));
         gw_finish(255);        
     }
-    chmod(GENWRAPPER_EXE, 0755);
 
     const char *wu_script = argv[1];
     if (access(wu_script, R_OK)) {
@@ -156,11 +156,6 @@ int main(int argc, char* argv[]) {
     for (int i = 2; i < argc; i ++)
 	args.push_back(string(argv[i]));
 
-    gw_task.stdin_filename = "";
-//    gw_task.stdout_filename = "stdout.txt";
-//    gw_task.stderr_filename = "stderr.txt";
-    gw_task.stdout_filename = "";
-    gw_task.stderr_filename = "";
     gw_task.run(args);
     while(1) {
         int status;
