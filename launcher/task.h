@@ -29,8 +29,6 @@ struct TASK {
     string stdin_filename;
     string stdout_filename;
     string stderr_filename;
-    string interpreter;
-    string script;
     double final_cpu_time;
     double starting_cpu;
     // how much CPU time was used by tasks before this in the job file
@@ -48,7 +46,7 @@ struct TASK {
     int parse(XML_PARSER&);
     */
     bool poll(int& status);
-    int run(int argc, char** argv);
+    int run(vector<string> &args);
     void kill();
     // will stop and resume only the wrapper not the executed applications
     void stop();

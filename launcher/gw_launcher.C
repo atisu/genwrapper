@@ -149,12 +149,19 @@ int main(int argc, char* argv[]) {
 
     // create task
     TASK gw_task;
-    gw_task.interpreter = GENWRAPPER_EXE;
-    gw_task.script = EXEC_SCRIPT;
+    vector<string> args;
+    args.push_back(GENWRAPPER_EXE);
+    args.push_back(string("sh"));
+    args.push_back(EXEC_SCRIPT);
+    for (int i = 2; i < argc; i ++)
+	args.push_back(string(argv[i]));
+
     gw_task.stdin_filename = "";
-    gw_task.stdout_filename = "stdout.txt";
-    gw_task.stderr_filename = "stderr.txt";
-    gw_task.run(argc, argv + 1);
+//    gw_task.stdout_filename = "stdout.txt";
+//    gw_task.stderr_filename = "stderr.txt";
+    gw_task.stdout_filename = "";
+    gw_task.stderr_filename = "";
+    gw_task.run(args);
     while(1) {
         int status;
         if (gw_task.poll(status)) {

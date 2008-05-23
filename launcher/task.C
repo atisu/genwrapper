@@ -41,18 +41,10 @@
 
 #define POLL_PERIOD 1.0
 
-int TASK::run(int argct, char** argvt) {
-    string interpreter_path, 
-        script_path,
-        stdout_path, 
+int TASK::run(vector<string> &args) {
+    string stdout_path, 
         stdin_path, 
-        stderr_path,
-        app_path;
-
-    // interpreter_path and script_path do not need to be resolved
-    interpreter_path = interpreter;
-    script_path = script;
-    app_path = interpreter_path;
+        stderr_path;
 
 #ifdef _WIN32
     PROCESS_INFORMATION process_info;
@@ -61,14 +53,9 @@ int TASK::run(int argct, char** argvt) {
     memset(&process_info, 0, sizeof(process_info));
     memset(&startup_info, 0, sizeof(startup_info));
 
-    // append wrapper's command-line arguments to those in the job file.
-    string command = app_path + " sh " + script_path + " ";
-    for (int i=0; i < argct; i++){
-        command += argvt[i];
-        if ((i+1) < argct){
-            command += string(" ");
-        }
-    }
+    string command;
+    for (vector<string>::const_iterator it = args.begin(); it != args.end(); it++)
+	    command += (*it) + " ";
 
     // pass std handles to app
     //
@@ -88,7 +75,7 @@ int TASK::run(int argct, char** argvt) {
         startup_info.hStdError = win_fopen(STDERR_FILE, "a");
     }*/
     if (!CreateProcess(
-        app_path.c_str(),
+        args[0].c_str(),
         (LPSTR)command.c_str(),
         NULL,
         NULL,
@@ -107,8 +94,6 @@ int TASK::run(int argct, char** argvt) {
     suspended = false;
     wall_cpu_time = 0;
 #else
-    char buf[256];
-
     pid = fork();
     if (pid == -1) {
         gw_do_log(LOG_ERR, "fork() failed: %s", strerror(errno));
@@ -137,14 +122,13 @@ int TASK::run(int argct, char** argvt) {
 		return ERR_FOPEN;
         }
 
-	char **argv = (char **)malloc(sizeof(*argv) * argct + 2);
-	argv[0] = "sh";
-	int i;
-	for (i = 1; i < argct; i++)
-		argv[i] = argvt[i - 1];
-	argv[i] = 0;
+	const char **argv = (const char **)malloc(sizeof(*argv) * args.size() + 1);
+	size_t i;
+	for (i = 0; i < args.size(); i++)
+		argv[i] = args.at(i).c_str();
+	argv[i] = NULL;
 
-        execv(buf, argv);
+        execv(argv[0], (char *const *)argv);
         gw_do_log(LOG_ERR, "Could not execute '%s': %s", argv[0], strerror(errno));
         exit(ERR_EXEC);
     }
