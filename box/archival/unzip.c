@@ -323,7 +323,8 @@ int unzip_main(int argc, char **argv)
         		dst_fn = xzalloc(zip_header.formatted.filename_len + 1);
                 xread(src_fd, dst_fn, zip_cd_header.formatted.filename_len);
 				// some zip implementations do not store permissions
-				if (f_permissions.raw != 0)
+				if ((f_permissions.raw != 0) && ((zip_cd_header.formatted.made_by >> 8 == 3 /* UNIX */)
+					|| (zip_cd_header.formatted.made_by >> 8 == 19 /* OS/X (Darwin) */)))
                 	chmod(dst_fn, f_permissions.raw);
                 lseek(src_fd, zip_cd_header.formatted.extra_len + 
                     zip_cd_header.formatted.file_comment_len, SEEK_CUR);
