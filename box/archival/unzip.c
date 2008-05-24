@@ -308,9 +308,7 @@ int unzip_main(int argc, char **argv)
 		/* Check magic number */
 		xread(src_fd, &magic, 4);
 		if (magic == ZIP_CDS_MAGIC) {
-#ifdef _WIN32
-			break;
-#else
+#ifndef _WIN32
             if (file_permissions) {
     		    xread(src_fd, zip_cd_header.raw, ZIP_CD_HEADER_LEN);
     		    // FIX_ENDIANNESS ??
@@ -327,8 +325,8 @@ int unzip_main(int argc, char **argv)
                     zip_cd_header.formatted.file_comment_len, SEEK_CUR);
                 continue;
             }
-			break;
 #endif
+			break;
 		}
 		if (magic == ZIP_CDS_END_MAGIC) {
             break;
