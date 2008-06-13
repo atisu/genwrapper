@@ -660,8 +660,7 @@ configure: configure.ac
 %.o: %.c 
 	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) $<
 %.o: %.C 
-	#$(QUIET_CC)
-	$(CC) -o $*.o -c $(ALL_CFLAGS) $(LAUNCHER_CFLAGS) $<
+	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) $(LAUNCHER_CFLAGS) $<
 %.s: %.c 
 	$(QUIET_CC)$(CC) -S $(ALL_CFLAGS) $<
 %.o: %.S
@@ -687,8 +686,7 @@ gitbox$X: $(GIT_OBJS) $(BOX_FILE)
 	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $^ $(ALL_LDFLAGS) $(LIBS)
 
 gw_launcher$X: $(LAUNCHER_OBJS) $(COMPAT_OBJS) $(BOX_FILE)
-	#$(QUIET_LINK)
-	$(CC) $(ALL_CFLAGS) $(LAUNCHER_CFLAGS) -o $@ $^ $(COMPAT_CFLAGS)  $(LAUNCHER_LDFLAGS) $(ALL_LDFLAGS) $(LIBS) 
+	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) $(LAUNCHER_CFLAGS) -o $@ $^ $(COMPAT_CFLAGS)  $(LAUNCHER_LDFLAGS) $(ALL_LDFLAGS) $(LIBS) 
 
 gw_launcher$X-clean:
 	$(RM) $(LAUNCHER_OBJS) gw_launcher$X
