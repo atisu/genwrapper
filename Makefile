@@ -132,40 +132,48 @@ RM = rm -f
 BOINC=yes
 DCAPI=yes
 
+ifeq ($(findstring mingw,$(TARGET)),mingw)
+DCAPI_HOME=C:/Projects/dcapi/trunk
+BOINC_CFLAGS=-IC:/Projects/boinc_mingw/include -IC:/Projects/openssl/include
+BOINC_LIBS=-LC:/Projects/boinc_mingw/ -lboinc -LC:/Projects/openssl/lib -lcrypto -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm
+#LAUNCHER_CFLAGS=
+#LAUNCHER_LDFLAGS=
+#only when comiling with mingw and BOINC is set to "yes"
+#OPENSSL_DIR=C:/Projects/openssl/lib/
+else
 DCAPI_CFLAGS=`pkg-config --cflags dcapi-boinc-client`
 DCAPI_LIBS=`pkg-config --libs dcapi-boinc-client`
 BOINC_CFLAGS=-I/usr/include/BOINC
 BOINC_LIBS=-lboinc_api -lboinc -lcrypto -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lpthread -lm
-#only when comiling with mingw and BOINC is set to "yes"
-OPENSSL_DIR=C:/Projects/genwrapper/trunk/win32/openssl/
+endif
 
 ifeq ($(DCAPI),yes)
 BOINC=yes
-LAUNCHER_CFLAGS += -DWANT_DCAPI
+LAUNCHER_CFLAGS+= -DWANT_DCAPI
 ifeq ($(findstring mingw,$(TARGET)),mingw)
-LAUNCHER_CFLAGS +=\
-    -I$(DCAPI_HOME)/include\
-LAUNCHER_LDFLAGS += \
+LAUNCHER_CFLAGS+=\
+    -I$(DCAPI_HOME)/include
+LAUNCHER_LDFLAGS+= \
     -L$(DCAPI_HOME) \
     -ldc-client-boinc
 else
-LAUNCHER_CFLAGS += $(DCAPI_CFLAGS)
-LAUNCHER_LDFLAGS += $(DCAPI_LIBS)
+LAUNCHER_CFLAGS+=$(DCAPI_CFLAGS)
+LAUNCHER_LDFLAGS+=$(DCAPI_LIBS)
 endif
 endif
 
 ifeq ($(BOINC),yes)
-LAUNCHER_CFLAGS += -DUSE_GLIBC_ERRNO
-LAUNCHER_LDFLAGS += -Lbox/ -lbox
-EXTRA_PROGRAMS += gw_launcher$X
+LAUNCHER_CFLAGS+=-DUSE_GLIBC_ERRNO
+LAUNCHER_LDFLAGS+=-Lbox/ -lbox
+EXTRA_PROGRAMS+=gw_launcher$X
 ifeq ($(findstring mingw,$(TARGET)),mingw)
 OPENSSLDIR=$(OPENSSL_DIR)
-ALL_LDFLAGS += $(BOINC_LIBS) -lwinmm
-ALL_CFLAGS += $(BOINC_CFLAGS) -DBOINC 
-LAUNCHER_CFLAGS += -DWIN32 -D_WIN32 -D_MT -DNDEBUG -D_WINDOWS -DCLIENT -DNODB -D_CONSOLE -fexceptions
+ALL_LDFLAGS+=$(BOINC_LIBS) -lwinmm
+ALL_CFLAGS+=$(BOINC_CFLAGS) -DBOINC 
+LAUNCHER_CFLAGS+=-DWIN32 -D_WIN32 -D_MT -DNDEBUG -D_WINDOWS -DCLIENT -DNODB -D_CONSOLE -fexceptions
 else
-ALL_CFLAGS += $(BOINC_CFLAGS) -DBOINC -DUSE_GLIBC_ERRNO
-ALL_LDFLAGS += $(BOINC_LIBS)
+ALL_CFLAGS+=$(BOINC_CFLAGS) -DBOINC -DUSE_GLIBC_ERRNO
+ALL_LDFLAGS+=$(BOINC_LIBS)
 endif
 endif
 
@@ -652,7 +660,8 @@ configure: configure.ac
 %.o: %.c 
 	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) $<
 %.o: %.C 
-	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) $(LAUNCHER_CFLAGS) $<
+	#$(QUIET_CC)
+	$(CC) -o $*.o -c $(ALL_CFLAGS) $(LAUNCHER_CFLAGS) $<
 %.s: %.c 
 	$(QUIET_CC)$(CC) -S $(ALL_CFLAGS) $<
 %.o: %.S
@@ -679,7 +688,7 @@ gitbox$X: $(GIT_OBJS) $(BOX_FILE)
 
 gw_launcher$X: $(LAUNCHER_OBJS) $(COMPAT_OBJS) $(BOX_FILE)
 	#$(QUIET_LINK)
-	$(CC) $(ALL_CFLAGS) $(LAUNCHER_CFLAGS) -o $@ $^ $(COMPAT_CFLAGS)  $(ALL_LDFLAGS) $(LIBS) $(LAUNCHER_LDFLAGS)  
+	$(CC) $(ALL_CFLAGS) $(LAUNCHER_CFLAGS) -o $@ $^ $(COMPAT_CFLAGS)  $(LAUNCHER_LDFLAGS) $(ALL_LDFLAGS) $(LIBS) 
 
 gw_launcher$X-clean:
 	$(RM) $(LAUNCHER_OBJS) gw_launcher$X

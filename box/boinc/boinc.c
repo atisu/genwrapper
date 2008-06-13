@@ -22,97 +22,101 @@
 #include "boinc_api.h"
 #include "common.h"
 
+
 static int resolve_filename(const char* filename) {
-    char buf[PATH_MAX];
-    int result;
-    result = boinc_resolve_filename(filename, buf, PATH_MAX-1);
-    fprintf(stdout, "%s", buf);
-    return result;
+  char buf[PATH_MAX];
+  int result;
+  result = boinc_resolve_filename(filename, buf, PATH_MAX-1);
+  fprintf(stdout, "%s", buf);
+  return result;
 }
+
 
 static int fraction_done(double fraction) {
-    return boinc_fraction_done(fraction);
+  return boinc_fraction_done(fraction);
 }
 
+
 static int fraction_done_percent(int fraction) {
-    double d_fraction = fraction / 100.00;
-    FILE *f = fopen(FILE_FRACTION_DONE, "w+");
-	if (!f)
-		return false;
-	fprintf(f, "%lf", d_fraction);
-	fclose(f);
-	return true;
+  double d_fraction = fraction / 100.00;
+  FILE *f = fopen(FILE_FRACTION_DONE, "w+");
+  if (!f)
+    return false;
+  fprintf(f, "%lf", d_fraction);
+  fclose(f);
+  return true;
 }
 
 
 // not used.
 int finish(int status) {
-    return boinc_finish(status);
+  return boinc_finish(status);
 }
 
+
 int init() {
-    return 0;
+  return 0;
 }
+
 
 int boinc_main(int argc, char **argv);
 int boinc_main(int argc, char **argv)
 {
-    int retval, status;
-    int fraction;
-    double d_fraction;
-    char *endptr;
+  int retval, status;
+  int fraction;
+  double d_fraction;
+  char *endptr;
 
-	retval = EXIT_SUCCESS;
-	if (argc<=1) {
-        fprintf(stdout, "%s\n", boinc_trivial_usage);
-        return retval;
-	}
+  retval = EXIT_SUCCESS;
+  if (argc<=1) {
+    fprintf(stdout, "%s\n", boinc_trivial_usage);
+    return retval;
+  }
 
-    if (strcmp(argv[1], "resolve_filename")==0) {
-        if (argc<=2) {
-            fprintf(stderr,"ERROR: missing parameter for resolve_filename\n");
-            return retval;
-        }
-        resolve_filename(argv[2]);
-    } else if (strcmp(argv[1], "fraction_done_percent")==0) {
-        if (argc<=2) {
-            fprintf(stderr, "ERROR: missing parameter for fraction_done\n");
-            return retval;
-        }
-        errno=0;
-        fraction = strtol(argv[2], &endptr, 10);
-        if (errno!=0 || argv[2]==endptr) {
-            fprintf(stderr,"ERROR: invalid parameter for fraction_done ('%s'->%d)\n", argv[2], fraction);
-            return retval;            
-        }
-        fraction_done_percent(fraction);
-    } else if (strcmp(argv[1], "fraction_done")==0) {
-        if (argc<=2) {
-            fprintf(stderr,"ERROR: missing parameter for fraction_done\n");
-            return retval;
-        }
-        errno=0;
-        d_fraction = strtod(argv[2], &endptr);
-        if (errno!=0 || argv[2]==endptr) {
-            fprintf(stderr,"ERROR: invalid parameter for fraction_done_percent ('%s'->%lf)\n", argv[2], d_fraction);
-            return retval;            
-        }
-        fraction_done(d_fraction);
-    } else if (strcmp(argv[1], "finish")==0) {
-        if (argc<=2) {
-            fprintf(stderr,"ERROR: missing parameter for finish\n");
-            return retval;
-        }
+  if (strcmp(argv[1], "resolve_filename")==0) {
+    if (argc<=2) {
+      fprintf(stderr,"ERROR: missing parameter for resolve_filename\n");
+      return retval;
+    }
+    resolve_filename(argv[2]);
+  } else if (strcmp(argv[1], "fraction_done_percent")==0) {
+    if (argc<=2) {
+      fprintf(stderr, "ERROR: missing parameter for fraction_done\n");
+      return retval;
+    }
+    errno=0;
+    fraction = strtol(argv[2], &endptr, 10);
+    if (errno!=0 || argv[2]==endptr) {
+      fprintf(stderr,"ERROR: invalid parameter for fraction_done ('%s'->%d)\n", argv[2], fraction);
+      return retval;            
+    }
+    fraction_done_percent(fraction);
+  } else if (strcmp(argv[1], "fraction_done")==0) {
+    if (argc<=2) {
+      fprintf(stderr,"ERROR: missing parameter for fraction_done\n");
+      return retval;
+    }
+    errno=0;
+    d_fraction = strtod(argv[2], &endptr);
+    if (errno!=0 || argv[2]==endptr) {
+      fprintf(stderr,"ERROR: invalid parameter for fraction_done_percent ('%s'->%lf)\n", argv[2], d_fraction);
+      return retval;            
+    }
+    fraction_done(d_fraction);
+  } else if (strcmp(argv[1], "finish")==0) {
+    if (argc<=2) {
+      fprintf(stderr,"ERROR: missing parameter for finish\n");
+      return retval;
+    }
         errno = 0;
         status = strtol(argv[2], &endptr, 10);
         if (errno!=0 || argv[2]==endptr) {
-            fprintf(stderr,"ERROR: invalid parameter for finish ('%s'->%d)\n", argv[2], status);
-            return retval;            
+	  fprintf(stderr,"ERROR: invalid parameter for finish ('%s'->%d)\n", argv[2], status);
+	  return retval;            
         }
-		exit(status);
-	} else if (strcmp(argv[1], "init")==0) {
-		// nothing here yet.
-	}
-	return retval;
+	exit(status);
+  } else if (strcmp(argv[1], "init")==0) {
+    // nothing here yet.
+  }
+  return retval;
 }
-

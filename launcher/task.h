@@ -16,7 +16,7 @@
 // or write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 //
-//  original by Andrew J. Younge (ajy4490@umiacs.umd.edu)
+// original by Andrew J. Younge (ajy4490@umiacs.umd.edu)
 //
 
 #include <string>
@@ -25,33 +25,22 @@ using std::vector;
 using std::string;
 
 struct TASK {
-    //string application;
-    string stdin_filename;
-    string stdout_filename;
-    string stderr_filename;
-    double final_cpu_time;
-    double starting_cpu;
-    // how much CPU time was used by tasks before this in the job file
+  double final_cpu_time;
+  double starting_cpu;
+  // how much CPU time was used by tasks before this in the job file
 #ifdef _WIN32
-    bool suspended;
-    double wall_cpu_time;
-        // for estimating CPU time on Win98/ME
-    HANDLE pid_handle;
-    HANDLE thread_handle;
+  bool suspended;
+  double wall_cpu_time;
+  // for estimating CPU time on Win98/ME
+  HANDLE pid_handle;
+  HANDLE thread_handle;
 #else
     int pid;
 #endif
-    void init();
-    /*
-    int parse(XML_PARSER&);
-    */
-    bool poll(int& status);
-    int run(vector<string> &args);
-    void kill();
-    // will stop and resume only the wrapper not the executed applications
-    void stop();
-    void resume();
-	/*
-	double cpu_time();
-	*/
+  void init();
+  bool poll(int& status);
+  int run(vector<string> &args);
+  void kill();
+  void stop();
+  void resume();
 };
