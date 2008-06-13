@@ -1,3 +1,4 @@
+
 /* vi: set sw=4 ts=4: */
 /*
  * echo implementation for busybox
@@ -33,6 +34,7 @@
 int echo_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int echo_main(int argc ATTRIBUTE_UNUSED, char **argv)
 {
+	int newfd = 0;
 	const char *arg;
 #if !ENABLE_FEATURE_FANCY_ECHO
 	enum {
@@ -48,8 +50,17 @@ int echo_main(int argc ATTRIBUTE_UNUSED, char **argv)
 	 * even if libc receives EBADF on write attempts, it feels determined
 	 * to output data no matter what. So it will try later,
 	 * and possibly will clobber future output. Not good. */
-	if (dup2(1, 1) != 1)
-		return -1;
+	/*if (dup2(1, 1) != 1)
+	       return -1;*/
+	/* atisu: using dup2() did not work on windows */ 
+	newfd = dup(STDOUT_FILENO);
+	if (newfd == -1){
+	  if (getenv("GIT_TRACE")) {
+	    fprintf(stderr, "command 'echo' returns without doing anything\n");  
+	  }
+          return -1;
+	}
+	close(newfd);
 
 	arg = *++argv;
 	if (!arg)
@@ -59,9 +70,17 @@ int echo_main(int argc ATTRIBUTE_UNUSED, char **argv)
 	char nflag = 1;
 	char eflag = 0;
 
+
 	/* We must check that stdout is not closed. */
-	if (dup2(1, 1) != 1)
-		return -1;
+	/* atisu: using dup2() did not work on windows */ 
+	newfd = dup(STDOUT_FILENO);
+	if (newfd == -1){
+	  if (getenv("GIT_TRACE")) {
+	    fprintf(stderr, "command 'echo' returns without doing anything\n");  
+	  }
+          return -1;
+	}
+	close(newfd);
 
 	while (1) {
 		arg = *++argv;
