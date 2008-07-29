@@ -85,9 +85,13 @@ double read_fraction_done(void) {
 int main(int argc, char* argv[]) {
   double frac_done = 0.0; 
 
+  fprintf(stdout, "Launcher for GenWrapper (build date %s)\n", __DATE__);
+
 #ifdef WANT_DCAPI
+  fprintf(stdout, "DC-API enabled version\n");
   DC_initClient();
 #else
+  fprintf(stdout, "BOINC version\n");
   BOINC_OPTIONS options;
   memset(&options, 0, sizeof(options));
   options.main_program = true;
@@ -140,7 +144,7 @@ int main(int argc, char* argv[]) {
   exec_script << "set -e\n"
     // profile script is optional
     << "if [ -r ./" PROFILE_SCRIPT " ]; then . ./" PROFILE_SCRIPT "; fi\n"
-    << ". `boinc resolve_filename " << wu_script << "`\n";
+    << ". `boinc resolve_filename ./" << wu_script << "`\n";
   exec_script.close();
   if (exec_script.fail()) {
     gw_do_log(LOG_ERR, "Failed to create the initialization script");

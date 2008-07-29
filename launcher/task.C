@@ -46,6 +46,7 @@
 // CreateProcess() takes HANDLEs for the stdin/stdout.
 // We need to use CreateFile() to get them.  Ugh.
 HANDLE win_fopen(const char* path, const char* mode) {
+  std::string path_ = gw_resolve_filename(path);
   SECURITY_ATTRIBUTES sa;
   memset(&sa, 0, sizeof(sa));
   sa.nLength = sizeof(sa);
@@ -53,7 +54,7 @@ HANDLE win_fopen(const char* path, const char* mode) {
 
   if (!strcmp(mode, "r")) {
     return CreateFile(
-		      path,
+		      path_.c_str(),
 		      GENERIC_READ,
 		      FILE_SHARE_READ,
 		      &sa,
@@ -63,9 +64,9 @@ HANDLE win_fopen(const char* path, const char* mode) {
 		      );
   } else if (!strcmp(mode, "w")) {
     return CreateFile(
-		      path,
+		      path_.c_str(),
 		      GENERIC_WRITE,
-		      FILE_SHARE_WRITE,
+		      FILE_SHARE_WRITE | FILE_SHARE_READ,
 		      &sa,
 		      OPEN_ALWAYS,
 		      0, 
@@ -73,7 +74,7 @@ HANDLE win_fopen(const char* path, const char* mode) {
 		      );
   } else if (!strcmp(mode, "a")) {
     HANDLE hAppend = CreateFile(
-				path,
+				path_.c_str(),
 				GENERIC_WRITE,
 				FILE_SHARE_WRITE,
 				&sa,
@@ -101,9 +102,10 @@ int TASK::run(vector<string> &args) {
   startup_info.cb = sizeof(startup_info);
   startup_info.dwFlags = STARTF_USESTDHANDLES;
   // we need to redirect stdout/ stderr to somewhere or they'll
-  // get lost
-  startup_info.hStdError = win_fopen("stderr.txt", "a");
-  startup_info.hStdOutput = win_fopen("stdout.txt", "a");
+  // get lost. we redirect them to the standard boinc stdout/ stderr,
+  // and dc-api will copy them to its stderr/stdout files before exit.
+  startup_info.hStdError = win_fopen("stderr.txt", "w");
+  startup_info.hStdOutput = win_fopen("stdout.txt", "w");
   startup_info.hStdInput = NULL;
 
   for (vector<string>::const_iterator it = args.begin(); it != args.end(); it++)
@@ -121,7 +123,7 @@ int TASK::run(vector<string> &args) {
 		     &startup_info,
 		     &process_info
 		     )) {
-    gw_do_log(LOG_ERR, "CreateProcess failed (%d)\n", GetLastError()); 
+    gw_do_log(LOG_ERR, "CreateProcess failed (%ld)\n", (long)GetLastError()); 
     return ERR_EXEC;
   }
   pid_handle = process_info.hProcess;
@@ -194,7 +196,7 @@ bool TASK::poll(int& status) {
 
 void TASK::kill() {
 #ifdef _WIN32
-  TerminateProcess(pid_handle, -1);
+  TerminateProcess(pid_handle, -2);
 #else
   ::kill(pid, SIGKILL);
 #endif

@@ -34,7 +34,7 @@
 int echo_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int echo_main(int argc ATTRIBUTE_UNUSED, char **argv)
 {
-	int newfd = 0;
+        int newfd = 0;
 	const char *arg;
 #if !ENABLE_FEATURE_FANCY_ECHO
 	enum {
@@ -51,7 +51,7 @@ int echo_main(int argc ATTRIBUTE_UNUSED, char **argv)
 	 * to output data no matter what. So it will try later,
 	 * and possibly will clobber future output. Not good. */
 	/*if (dup2(1, 1) != 1)
-	       return -1;*/
+	  return -1;*/
 	/* atisu: using dup2() did not work on windows */ 
 	newfd = dup(STDOUT_FILENO);
 	if (newfd == -1){
@@ -61,7 +61,7 @@ int echo_main(int argc ATTRIBUTE_UNUSED, char **argv)
           return -1;
 	}
 	close(newfd);
-
+	
 	arg = *++argv;
 	if (!arg)
 		goto newline_ret;
@@ -72,6 +72,8 @@ int echo_main(int argc ATTRIBUTE_UNUSED, char **argv)
 
 
 	/* We must check that stdout is not closed. */
+	/*if (_dup2(1, 1) != 1)
+	  return -1;*/
 	/* atisu: using dup2() did not work on windows */ 
 	newfd = dup(STDOUT_FILENO);
 	if (newfd == -1){
@@ -81,7 +83,6 @@ int echo_main(int argc ATTRIBUTE_UNUSED, char **argv)
           return -1;
 	}
 	close(newfd);
-
 	while (1) {
 		arg = *++argv;
 		if (!arg)

@@ -32,9 +32,12 @@ std::string gw_resolve_filename(const char *filename) {
   std::string filename_resolved;
 #ifdef WANT_DCAPI
   char *tmp = DC_resolveFileName(DC_FILE_IN, filename);
-  if (tmp)
+  if (tmp) {
     filename_resolved = tmp;
-  free(tmp);
+    free(tmp);
+  } else {
+    filename_resolved = filename;
+  }
 #else
   boinc_resolve_filename_s(filename, filename_resolved);
 #endif
