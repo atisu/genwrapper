@@ -636,12 +636,14 @@ static int writeTarFile(const int tar_fd, const int verboseFlag,
 		bb_error_msg("error exit delayed from previous errors");
 
 	if (gzipPid) {
+#if ENABLE_FEATURE_TAR_GZIP || ENABLE_FEATURE_TAR_BZIP2
 		int status;
 		if (safe_waitpid(gzipPid, &status, 0) == -1)
 			bb_perror_msg("waitpid");
 		else if (!WIFEXITED(status) || WEXITSTATUS(status))
 			/* gzip was killed or has exited with nonzero! */
 			errorFlag = TRUE;
+#endif
 	}
 	return errorFlag;
 }

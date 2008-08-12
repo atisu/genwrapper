@@ -3772,8 +3772,8 @@ sprint_status(char *s, int status, int sigonly)
 #endif
 		}
 		st &= 0x7f;
-		col = fmtstr(s, 32, strsignal(st));
 #ifndef _WIN32
+		col = fmtstr(s, 32, strsignal(st));
 		if (WCOREDUMP(status)) {
 			col += fmtstr(s + col, 16, " (core dumped)");
 		}
