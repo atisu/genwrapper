@@ -496,7 +496,7 @@ char *xasprintf(const char *format, ...)
 	int r;
 	char *string_ptr;
 
-#if 0
+#if 1
 	// GNU extension
 	va_start(p, format);
 	r = vasprintf(&string_ptr, format, p);

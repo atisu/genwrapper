@@ -26,14 +26,8 @@ void bb_verror_msg(const char *s, va_list p, const char* strerr)
 	if (!s) /* nomsg[_and_die] uses NULL fmt */
 		s = ""; /* some libc don't like printf(NULL) */
 
-#ifndef _WIN32
 	used = vasprintf(&msg, s, p);
-#else
-	/* This is wrong because it uses p twice without va_start & va_end */
-	used = vsnprintf(NULL, 0, s, p);
-	msg = xmalloc(used+1);
-	used = vsnprintf(&msg, used+1, s, p);
-#endif
+
 	if (used < 0)
 		return;
 
@@ -98,14 +92,7 @@ void bb_verror_msg(const char *s, va_list p, const char* strerr)
 		s = ""; /* some libc don't like printf(NULL) */
 
 	/* Prevent "derefing type-punned ptr will break aliasing rules" */
-#ifndef _WIN32
 	used = vasprintf((char**)(void*)msgptr, s, p);
-#else
-	/* This is wrong because it uses p twice without va_start & va_end */
-	used = vsnprintf(NULL, 0, s, p);
-	msg = xmalloc(used+1);
-	used = vsnprintf(&msg, used+1, s, p);
-#endif
 	if (used < 0)
 		return;
 

@@ -468,7 +468,7 @@ ifeq ($(findstring mingw,$(TARGET)),mingw)
 	NO_SYMLINKS=YesPlease
 	NO_SVN_TESTS=YesPlease
 	COMPAT_CFLAGS += -DNO_ETC_PASSWD -DNO_ST_BLOCKS -DSTRIP_EXTENSION=\".exe\" -I compat
-	COMPAT_OBJS += compat/mingw.o compat/fnmatch.o compat/regex.o
+	COMPAT_OBJS += compat/mingw.o compat/fnmatch.o compat/regex.o compat/vasprintf.o
 	EXTLIBS += -lws2_32
 	X = .exe
 	NOEXECTEMPL = .noexec

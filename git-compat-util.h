@@ -123,6 +123,9 @@ extern void set_usage_routine(void (*routine)(const char *err) NORETURN);
 extern void set_die_routine(void (*routine)(const char *err, va_list params) NORETURN);
 extern void set_error_routine(void (*routine)(const char *err, va_list params));
 extern void set_warn_routine(void (*routine)(const char *warn, va_list params));
+#ifdef _WIN32
+extern int vasprintf (char **result, const char *format, va_list args);
+#endif
 
 #ifdef NO_MMAP
 
