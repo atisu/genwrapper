@@ -5,4 +5,4 @@ Balaton Zoltan <balaton@eik.bme.hu>
     Git independent version, porting back to Linux and Mac OS X
 
 Marosi Attila Csaba <atisu@sztaki.hu>
-    BOINC specific parts
+    BOINC specific parts, various cleanups
