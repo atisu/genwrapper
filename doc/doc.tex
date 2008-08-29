@@ -22,7 +22,7 @@
     \vspace{10mm}
     \large{BUDAPEST, 2008}\\
     \vspace{100mm}
-    \small{r1826 - 20080829}
+    \small{r1827 - 20080829}
 \end{center}
 \thispagestyle{empty}
 
@@ -162,7 +162,7 @@ A GenWrapper wrapped application works as follows:
     \item The launcher checks if a zip file named \texttt{<application\_name>.zip } exists, if yes it unzips it.
     \item The launcher generates a shell script which:
         \begin{itemize}
-            \item checks if a file named \texttt{profile.sh} exists, if yes it executes it (sources it).
+            \item checks if a file named \texttt{profile.sh} exists, if yes it sources it.
             \item executes GitBox with the command line arguments of the work unit, where the first argument must be the name of the \emph{work unit supplied shell script}. The launcher will resolve the name of this script, it is enough to provide the logical file name.
         \end{itemize}
     
@@ -224,9 +224,9 @@ endif
 \caption{Configurable options in the Makefile}\label{fig:makefile}
 \end{figure}
 
-\paragraph*{}The \texttt{BOINC=yes|no} and \texttt{DCAPI=yes|no} options (on Figure \ref{fig:makefile}) decide whether DC-API/ BOINC support should by compiled in. On Linux/ Mac OS/X no other adjustment is needed. 
+\paragraph*{}The \texttt{BOINC=yes|no} and \texttt{DCAPI=yes|no} options (on Figure \ref{fig:makefile}) decide whether DC-API/ BOINC support should by compiled in. On Linux/ Mac OS X no other adjustment is needed. 
 
-On Windows the \texttt{DCAPI\_HOME}, \texttt{BOINC\_CFLAGS} and \texttt{BOINC\_LIBS} variables should be set to the directories where the BOINC/ DC-API libraries and includes reside. Linking libraries compiled with MINGW and MS Visual C++ can be troublesome, we recommend to compile the BOINC and DC-API libs via MINGW too.
+On Windows the \texttt{DCAPI\_HOME}, \texttt{BOINC\_CFLAGS} and \texttt{BOINC\_LIBS} variables should be set to the directories where the BOINC/ DC-API libraries and includes reside. Linking libraries compiled with MinGW and MS Visual C++ can be troublesome, we recommend to compile the BOINC and DC-API libs via MinGW too.
 
 \subsection{Cross-compiling}
 
