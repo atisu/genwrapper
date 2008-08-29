@@ -2,10 +2,12 @@
 \usepackage[utf8x]{inputenc}
 \usepackage{t1enc}
 \usepackage{times}
+\usepackage[margin=2cm]{geometry}
 \usepackage[pdftex]{graphicx}
 \usepackage{listings}
 \usepackage{xspace}
 \usepackage{url}
+
 
 \title{GenWrapper - BOINC Generic Wrapper for legacy applications}
 \begin{document}
@@ -34,7 +36,8 @@
 
 \section{Introduction}
 
-GenWrapper is a DC-API/ BOINC generic wrapper for legacy applications.
+GenWrapper is a generic wrapper interpreter (scriptable as the POSIX shell). It is very much based on GitBox that was extracted from git and modified to run
+standalone. Gitbox is a stripped down version of BusyBox modified to compile under Windows with MinGW. This version should also compile on Linux and Mac OS X (and probably more but those are not tested) besides Windows. Main features are:
 
 \begin{itemize}
     \item Runs legacy applications without BOINCification.
@@ -62,7 +65,7 @@ GenWrapper is a DC-API/ BOINC generic wrapper for legacy applications.
 \paragraph*{}The optional profile script should follow these rules:
 
 \begin{itemize}
-    \item Should be a standard POSIX shell script. It can be tested locally via GitBox (execute \texttt{gitbox sh profile.sh}).
+    \item Should be a standard POSIX shell script (no bash or ksh extensions). It can be tested locally via GitBox (execute \texttt{gitbox sh profile.sh}).
     \item It is run after uncompressing the application archive, but before starting the work unit.
     \item Should handle all platform/ architecture dependent task required for the application to run (e.g.: set library path).
     \item Exported environment variables are later available for the \emph{work unit supplied script}.   
@@ -73,7 +76,7 @@ GenWrapper is a DC-API/ BOINC generic wrapper for legacy applications.
 \begin{itemize}
     \item They should supply a shell script (\emph{work unit supplied script}), which:
         \begin{itemize}
-            \item is a standard POSIX shell script. It can be tested locally via GitBox (execute \texttt{gitbox sh \emph{scriptname}}).
+            \item is a standard POSIX shell script (no bash or ksh extensions). It can be tested locally via GitBox (execute \texttt{gitbox sh \emph{scriptname}}).
             \item should contain platform/ architecture independent code only.
             \item should execute the legacy application(s).
             \item has access to environment variables set in the profile script.
@@ -125,19 +128,19 @@ Figure \ref{fig:wuscript} shows a simple example for a work unit supplied script
   identifierstyle=\texttt,
   stringstyle=\ttfamily,
   linewidth=\textwidth,
-  numbers=left
+  numbers=none
 }
 
 \begin{figure}[htb]
 \begin{lstlisting}[breaklines=true]
 IN=`boinc resolve_filename in`
 OUT=`boinc resolve_filename out`
-NUM=`cat ${IN}`
+NUM=`cat "${IN}"`
 PERCENT_PER_ITER=$((10000 / NUM))
 for i in `seq ${NUM}`; do
     PERCENT_COMPLETE=$((PERCENT_INTER * i / 1000))
     boinc fraction_done_percent ${PERCENT_COMPLETE}
-    echo -e "I am ${PERCENT_COMPLETE}% complete." >> ${OUT}
+    echo -e "I am ${PERCENT_COMPLETE}% complete." >> "${OUT}"
     sleep 1;
 done
 \end{lstlisting}
@@ -147,6 +150,7 @@ done
 In each iteration it sleeps for a second and writes the completion status to the logical file named \texttt{out} while reporting it to the BOINC client. Notes:
 \begin{itemize}
     \item \textbf{Every filename needs to be resolved via}\texttt{ boinc resolve\_filename}\textbf{.}
+    \item Variable references should be properly quoted (e.g: \texttt{NUM=`cat "\$\{IN\}"`}).
     \item Only the launcher is DC-API/ BOINC enabled, GitBox and shell scripts act as BOINC compound applications.
     \item \texttt{exit} <STATUS> command equals to calling the \texttt{boinc\_finish(<STATUS>)} BOINC C API function.
     \item Applications executed by the script cannot contain any BOINC/ DC-API functions.
@@ -176,11 +180,8 @@ A GenWrapper wrapped application works as follows:
 Using GenWrapper:
 \begin{itemize}
     \item more legacy executables may be bundled together and run, for example one executable could use the output of another executable in a single work unit, even if there are special preparations to be done with the output before using it as input.
-    \item with server side support any number of work units may be bundled into a single work.
+%    \item with server side support any number of work units may be bundled into a single work.
 \end{itemize}
-
-\pagebreak 
-
 
 \section{Compiling}
 
@@ -263,8 +264,6 @@ and then you can issue the following command:
 \\
 \\                                                                                                                                                                                                                                           
 \texttt{make TARGET=mingw CC="gcc -mno-cygwin" AR=ar STRIP=strip}
-
-\pagebreak 
 
 \section{Contact and feedback}
 
