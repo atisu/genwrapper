@@ -22,7 +22,7 @@
     \vspace{10mm}
     \large{BUDAPEST, 2008}\\
     \vspace{100mm}
-    \small{r1827 - 20080829}
+    \small{r1828 - 20080829}
 \end{center}
 \thispagestyle{empty}
 
@@ -38,9 +38,9 @@ GenWrapper is a DC-API/ BOINC generic wrapper for legacy applications.
 
 \begin{itemize}
     \item Runs legacy applications without BOINCification.
-    \item Available for Mac OS/X, MS Windows, GNU/ Linux (it is based on GitBox).
-    \item Small size (\(\approx\)400k).
     \item Makes BOINC API/ DC-API available in POSIX shell scripting.
+    \item Available for Mac OS X, MS Windows, GNU/ Linux (it is based on GitBox).
+    \item Small size (\(\approx\)400k).
 \end{itemize}
 
 \section{Usage}
@@ -147,7 +147,7 @@ done
 In each iteration it sleeps for a second and writes the completion status to the logical file named \texttt{out} while reporting it to the BOINC client. Notes:
 \begin{itemize}
     \item \textbf{Every filename needs to be resolved via}\texttt{ boinc resolve\_filename}\textbf{.}
-    \item Only the launcher is DC-API/ BOINC enabled, GitBox and shell scripts act as boinc compound applications.
+    \item Only the launcher is DC-API/ BOINC enabled, GitBox and shell scripts act as BOINC compound applications.
     \item \texttt{exit} <STATUS> command equals to calling the \texttt{boinc\_finish(<STATUS>)} BOINC C API function.
     \item Applications executed by the script cannot contain any BOINC/ DC-API functions.
 \end{itemize}
