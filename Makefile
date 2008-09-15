@@ -144,7 +144,7 @@ else
 DCAPI_CFLAGS=`pkg-config --cflags dcapi-boinc-client`
 DCAPI_LIBS=`pkg-config --libs dcapi-boinc-client`
 BOINC_CFLAGS=-I/usr/include/BOINC
-BOINC_LIBS=-lboinc_api -lboinc -lcrypto -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lpthread -lm
+BOINC_LIBS=-lboinc_api -lboinc -lcrypto -lstdc++ -lpthread -lm
 endif
 
 ifeq ($(DCAPI),yes)
