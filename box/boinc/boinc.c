@@ -116,7 +116,9 @@ int boinc_main(int argc, char **argv)
         }
 	exit(status);
   } else if (strcmp(argv[1], "init")==0) {
-    // nothing here yet.
+    // nothing here
+  } else {
+    fprintf(stderr, "ERROR: invalid command '%s'\n", argv[1]);
   }
   return retval;
 }
