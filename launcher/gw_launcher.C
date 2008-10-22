@@ -112,6 +112,7 @@ int main(int argc, char* argv[]) {
 
   filename.append(".zip");
   std::string zip_filename_resolved = gw_resolve_filename(filename.c_str());
+  std::string genwrapper_exe_resolved = gw_resolve_filename(GENWRAPPER_EXE);
   if (!access(zip_filename_resolved.c_str(), R_OK)) {
     const char *zip_argv[] = {
       "unzip", "-o", "-X", zip_filename_resolved.c_str(), 0
@@ -128,9 +129,9 @@ int main(int argc, char* argv[]) {
   }
 
   // Check for the interpreter
-  if (access(GENWRAPPER_EXE, X_OK)) {
+  if (access(genwrapper_exe_resolved.c_str(), X_OK)) {
     gw_do_log(LOG_ERR, "Wrapper executable '%s' is not executable: %s",
-	      GENWRAPPER_EXE, strerror(errno));
+	      genwrapper_exe_resolved.c_str(), strerror(errno));
     gw_finish(255);  
   }
   const char *wu_script = argv[1];
@@ -153,13 +154,13 @@ int main(int argc, char* argv[]) {
   // create task
   TASK gw_task;
   vector<string> args;
-  args.push_back(GENWRAPPER_EXE);
+  args.push_back(genwrapper_exe_resolved.c_str());
   args.push_back(string("sh"));
   args.push_back(EXEC_SCRIPT);
   for (int i = 2; i < argc; i ++)
     args.push_back(string(argv[i]));
   if (gw_task.run(args) == ERR_EXEC) {
-    gw_do_log(LOG_ERR, "Could not exec %s\n", GENWRAPPER_EXE);
+    gw_do_log(LOG_ERR, "Could not exec %s\n", genwrapper_exe_resolved.c_str());
     gw_finish(255);
   }
   
@@ -167,7 +168,7 @@ int main(int argc, char* argv[]) {
     int status;
     if (gw_task.poll(status)) {
       if (status) {
-	gw_do_log(LOG_ERR, "'%s' exited with error: %d\n", GENWRAPPER_EXE, status);
+	gw_do_log(LOG_ERR, "'%s' exited with error: %d\n", genwrapper_exe_resolved.c_str(), status);
         gw_finish(status);
       }
       break;
