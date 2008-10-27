@@ -361,7 +361,7 @@ BOX_CFLAGS = -Ibox/include -Ibox/libbb \
 BOX_H := $(patsubst %.h,box/include/%.h,$(BOX_H))
 BOX_OBJS := $(patsubst %.o,box/%.o,$(BOX_OBJS))
 
-EXTLIBS =
+EXTLIBS = -lm
 
 #
 # Platform specific tweaks
