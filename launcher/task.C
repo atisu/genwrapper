@@ -144,7 +144,7 @@ int TASK::run(vector<string> &args) {
     // we should deal with atomicity somehow
     //
 
-    const char **argv = (const char **)malloc(sizeof(*argv) * args.size() + 1);
+    const char **argv = (const char **)malloc(sizeof(*argv) * (args.size() + 1));
     size_t i;
     for (i = 0; i < args.size(); i++)
       argv[i] = args.at(i).c_str();
