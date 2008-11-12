@@ -133,7 +133,6 @@ BOINC=yes
 DCAPI=yes
 
 ifeq ($(findstring mingw,$(TARGET)),mingw)
-DCAPI_HOME=C:/Projects/dcapi/trunk
 BOINC_CFLAGS=-IC:/Projects/boinc_mingw/include -IC:/Projects/openssl/include
 BOINC_LIBS=-LC:/Projects/boinc_mingw/ -lboinc -LC:/Projects/openssl/lib -lcrypto -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm
 #LAUNCHER_CFLAGS=
@@ -141,8 +140,6 @@ BOINC_LIBS=-LC:/Projects/boinc_mingw/ -lboinc -LC:/Projects/openssl/lib -lcrypto
 #only when comiling with mingw and BOINC is set to "yes"
 #OPENSSL_DIR=C:/Projects/openssl/lib/
 else
-DCAPI_CFLAGS=`pkg-config --cflags dcapi-boinc-client`
-DCAPI_LIBS=`pkg-config --libs dcapi-boinc-client`
 BOINC_CFLAGS=-I/usr/include/BOINC
 BOINC_LIBS=-lboinc_api -lboinc -lcrypto -lstdc++ -lpthread -lm
 endif
@@ -150,16 +147,6 @@ endif
 ifeq ($(DCAPI),yes)
 BOINC=yes
 LAUNCHER_CFLAGS+= -DWANT_DCAPI
-ifeq ($(findstring mingw,$(TARGET)),mingw)
-LAUNCHER_CFLAGS+=\
-    -I$(DCAPI_HOME)/include
-LAUNCHER_LDFLAGS+= \
-    -L$(DCAPI_HOME) \
-    -ldc-client-boinc
-else
-LAUNCHER_CFLAGS+=$(DCAPI_CFLAGS)
-LAUNCHER_LDFLAGS+=$(DCAPI_LIBS)
-endif
 endif
 
 ifeq ($(BOINC),yes)

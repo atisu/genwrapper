@@ -19,10 +19,10 @@
 #include <stdio.h>
 #include <libgen.h>
 #include <vector>
-#include <string>
 #include <iostream>
 #include <fstream>
 #include <errno.h>
+#include <syslog.h>
 #ifdef _WIN32
 #include "boinc_win.h"
 #else
@@ -31,9 +31,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #endif // _WIN32
-#ifdef WANT_DCAPI
-#include "dc_client.h"
-#endif // WANT_DCAPI
 #include "boinc_api.h"
 // for boinc_sleep()
 #include "util.h"
@@ -52,10 +49,20 @@
 #endif // _WIN32
 #define PROFILE_SCRIPT  "profile.sh"
 #define EXEC_SCRIPT     "gw_tmp.sh"
-#define POLL_PERIOD 1.0
+#define POLL_PERIOD     1.0
 
 #ifndef _MAX_PATH
 #define _MAX_PATH 255
+#endif
+
+#ifdef WANT_DCAPI
+static const char* dc_files[] = {
+  DC_LABEL_STDOUT,
+  DC_LABEL_STDERR,
+  DC_LABEL_CLIENTLOG,
+  CKPT_LABEL_OUT,
+  NULL
+};
 #endif
 
 
@@ -81,23 +88,64 @@ double read_fraction_done(void) {
   return fraction;
 }
 
+void poll_boinc_messages(TASK& task) {
+  BOINC_STATUS status;
+  boinc_get_status(&status);
+  if (status.no_heartbeat) {
+    task.kill();
+    exit(0);
+  }
+  if (status.quit_request) {
+    task.kill();
+    exit(0);
+  }
+  if (status.abort_request) {
+    task.kill();
+    exit(0);
+  }
+  if (status.suspended) {
+    if (!task.suspended) {
+      task.stop();
+    }
+  } else {
+    if (task.suspended) {
+      task.resume();
+    }
+  }
+}
+
 
 int main(int argc, char* argv[]) {
   double frac_done = 0.0; 
+  BOINC_OPTIONS options;
 
   fprintf(stdout, "Launcher for GenWrapper (build date %s)\n", __DATE__);
 
-#ifdef WANT_DCAPI
-  fprintf(stdout, "DC-API enabled version\n");
-  DC_initClient();
-#else
-  fprintf(stdout, "BOINC version\n");
-  BOINC_OPTIONS options;
   memset(&options, 0, sizeof(options));
   options.main_program = true;
   options.check_heartbeat = true;
   options.handle_process_control = true;
+  options.send_status_msgs = false;
   boinc_init_options(&options);
+
+#ifdef WANT_DCAPI
+  fprintf(stdout, "DC-API enabled version\n");
+  // need to create various files expected by DC-API
+  // in case the application fails, DC-API still expects them
+  std::string dc_filename_resolved;
+  FILE* f;
+  for (int i=0; dc_files[i] != NULL; i++) {
+    dc_filename_resolved = gw_resolve_filename(dc_files[i]);
+    f = fopen(dc_filename_resolved.c_str(), "w");
+    if (f) { 
+      fclose(f);
+    } else {
+      gw_do_log(LOG_ERR, "Failed to create DC-API file '%s'", dc_files[i]);
+      gw_finish(255);    
+    }
+  }
+#else
+  fprintf(stdout, "BOINC version\n");
 #endif
 
   if (argc < 2)
@@ -169,7 +217,7 @@ int main(int argc, char* argv[]) {
     if (gw_task.poll(status)) {
       if (status) {
 	gw_do_log(LOG_ERR, "'%s' exited with error: %d\n", genwrapper_exe_resolved.c_str(), status);
-        gw_finish(status);
+        gw_finish(status, gw_task.final_cpu_time);
       }
       break;
     }
@@ -177,10 +225,10 @@ int main(int argc, char* argv[]) {
     if (frac_done_t > frac_done)
       frac_done = frac_done_t;
     send_status_message(gw_task, frac_done);
-    // no DC-API equivalent, fallback to BOINC API
+    poll_boinc_messages(gw_task);
     boinc_sleep(POLL_PERIOD);
   }
-  gw_finish(0);
+  gw_finish(0, gw_task.final_cpu_time);
 }
 
 

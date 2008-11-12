@@ -16,17 +16,20 @@
 // or write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
+#include <stdarg.h>
 #include <string>
 
-#ifndef WANT_DCAPI
-#define gw_do_log(LEVEL, FORMAT, ...) \
-    fprintf(stderr, "%s[%d]::%s(): ", __FILE__, __LINE__, __FUNCTION__); \
-    fprintf(stderr, FORMAT, ## __VA_ARGS__); \
-    fprintf(stderr, "\n"); \
-    fflush(stderr);
-#else
-#define gw_do_log(LEVEL, FORMAT, ...) DC_log(LEVEL, FORMAT, ## __VA_ARGS__);
-#endif
+// DC-API expects some files
+#ifdef WANT_DCAPI
+#define DC_LABEL_STDOUT "dc_stdout.txt"
+#define DC_LABEL_STDERR "dc_stderr.txt"
+#define DC_LABEL_CLIENTLOG "dc_clientlog.txt"
+#define CKPT_LABEL_OUT "dc_ckpt_out"
 
+#endif // WANT_DCAPI
+
+void gw_do_log(int level, const char *fmt, ...);
+void gw_do_vlog(int level, const char *fmt, va_list ap);
 std::string gw_resolve_filename(const char *filename);
-void gw_finish(int status);
+bool gw_copy_file(const char* src, const char* dst);
+void gw_finish(int status, double total_cpu_time = 0);

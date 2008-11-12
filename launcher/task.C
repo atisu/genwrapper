@@ -22,7 +22,6 @@
 #include <stdio.h>
 #include <errno.h>
 #include <vector>
-#include <string>
 #ifdef _WIN32
 #include "boinc_win.h"
 #else
@@ -35,6 +34,7 @@
 #endif // WANT_DCAPI
 #include "str_util.h"
 #include "util.h"
+#include "app_ipc.h"
 #include "error_numbers.h"
 #include "gw_common.h"
 #include "task.h"
@@ -104,8 +104,8 @@ int TASK::run(vector<string> &args) {
   // we need to redirect stdout/ stderr to somewhere or they'll
   // get lost. we redirect them to the standard boinc stdout/ stderr,
   // and dc-api will copy them to its stderr/stdout files before exit.
-  startup_info.hStdError = win_fopen("stderr.txt", "w");
-  startup_info.hStdOutput = win_fopen("stdout.txt", "w");
+  startup_info.hStdError = win_fopen(STDERR_FILE, "w");
+  startup_info.hStdOutput = win_fopen(STDOUT_FILE, "w");
   startup_info.hStdInput = NULL;
 
   for (vector<string>::const_iterator it = args.begin(); it != args.end(); it++)
@@ -140,10 +140,14 @@ int TASK::run(vector<string> &args) {
   if (pid == 0) {
     // we're in the child process here
     //
-    // NOTE: if the application is restartable,
-    // we should deal with atomicity somehow
-    //
-
+    // create a new process group with the id of the child process, so we can control all
+    // (future) child processes from the parent.
+    // NOTE: when job control is enabled in gitbox, it will create new process groups for its subshells ;(
+    if (setpgid(getpid(), getpid()) == -1) {
+      gw_do_log(LOG_ERR, "process id and the new process group id does not match !! (%d/%d)", 
+		getpgid(0), getpid());
+      exit(ERR_EXEC);
+    }
     const char **argv = (const char **)malloc(sizeof(*argv) * (args.size() + 1));
     size_t i;
     for (i = 0; i < args.size(); i++)
@@ -159,6 +163,7 @@ int TASK::run(vector<string> &args) {
 }
 
 bool TASK::poll(int& status) {
+  // no cpu-time measurement yet for windows ;(
 #ifdef _WIN32
   unsigned long exit_code;
   if (GetExitCodeProcess(pid_handle, &exit_code)) {
@@ -169,8 +174,6 @@ bool TASK::poll(int& status) {
       return true;
     }
   }
-  if (!suspended) 
-    wall_cpu_time += POLL_PERIOD;
 #else
   int wpid, wait_status;
   struct rusage ru;
@@ -181,46 +184,39 @@ bool TASK::poll(int& status) {
       status = 255;
     else
       status = WEXITSTATUS(wait_status);
-    // trivial validator needs cpu_time > 0
-    final_cpu_time = 1;
+    final_cpu_time = (float)ru.ru_utime.tv_sec + ((float)ru.ru_utime.tv_usec)/1e+6;
     return true;
   }
 #endif
   return false;
 }
 
-// 
-// kill/ stop/ resume won't affect any process started
-// by gitbox
-//
 
 void TASK::kill() {
 #ifdef _WIN32
-  TerminateProcess(pid_handle, -2);
+  //TerminateProcess(pid_handle, -2);
 #else
-  ::kill(pid, SIGKILL);
+  ::killpg(pid, SIGKILL);
 #endif
 }
 
 
 void TASK::stop() {
 #ifdef _WIN32
-  SuspendThread(thread_handle);
-  suspended = true;
+  //SuspendThread(thread_handle);
 #else
-  ::kill(pid, SIGSTOP);
+  ::killpg(pid, SIGSTOP);
 #endif
+  suspended = true;
 }
 
 
 void TASK::resume() {
 #ifdef _WIN32
-  ResumeThread(thread_handle);
-  suspended = false;
+  //ResumeThread(thread_handle);
 #else
-  ::kill(pid, SIGCONT);
+  ::killpg(pid, SIGCONT);
 #endif
+  suspended = false;
 }
-
-
 

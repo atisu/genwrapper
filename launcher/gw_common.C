@@ -20,35 +20,125 @@
 #ifndef _WIN32
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/syslog.h>
 #endif // _WIN32
-#ifdef WANT_DCAPI
-#include "dc_client.h"
-#endif // WANT_DCAPI
+#include <fstream>
 #include "boinc_api.h"
 #include "gw_common.h"
+
+static const char *levels[] = {
+  "Debug",
+  "Info",
+  "Notice",
+  "Warning",
+  "Error",
+  "Critical"
+};
+
+
+void gw_do_log(int level, const char *fmt, ...) {
+  va_list ap;
+
+  va_start(ap, fmt);
+  gw_do_vlog(level, fmt, ap);
+  va_end(ap);
+}
+
+
+void gw_do_vlog(int level, const char *fmt, va_list ap) {
+  const char *levstr;
+  char timebuf[32];
+  struct tm *tm;
+  time_t now;
+
+  if (level >= 0 && level < (int)(sizeof(levels) / sizeof(levels[0])) && levels[level])
+    levstr = levels[level];
+  else
+    levstr = "Unknown";
+
+  now = time(NULL);
+  tm = localtime(&now);
+  strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S", tm);
+
+  fprintf(stdout, "%s [%s] ", timebuf, levstr);
+  vfprintf(stdout, fmt, ap);
+  fprintf(stdout, "\n");
+  fflush(stdout);
+}
 
 
 std::string gw_resolve_filename(const char *filename) {
   std::string filename_resolved;
-#ifdef WANT_DCAPI
-  char *tmp = DC_resolveFileName(DC_FILE_IN, filename);
-  if (tmp) {
-    filename_resolved = tmp;
-    free(tmp);
-  } else {
-    filename_resolved = filename;
-  }
-#else
+
   boinc_resolve_filename_s(filename, filename_resolved);
-#endif
   return filename_resolved;
 }
 
 
-void gw_finish(int status) {
+bool gw_copy_file(const char* src, const char* dst) {
+  std::ifstream input_file;
+  std::ofstream output_file;
+
+  input_file.open(src, std::ios::in | std::ios::binary);
+  if (!input_file) {
+    gw_do_log(LOG_ERR, "Failed to open file '%s' for copiing (src)", src);
+    return false;
+  }
+  output_file.open(dst, std::ios::out | std::ios::binary);
+  if (!output_file) {
+    input_file.close();
+    gw_do_log(LOG_ERR, "Failed to open file '%s' for copiing (dst)", dst);
+    return false;
+  }
+  output_file << input_file.rdbuf();
+  input_file.close();
+  if (input_file.fail()) {
+    output_file.close();
+    gw_do_log(LOG_ERR, "Failed to close  file '%s' ", src);
+    return false;
+  }  
+  output_file.close();
+  if (output_file.fail()) {
+    gw_do_log(LOG_ERR, "Failed to close  file '%s' ", dst);
+    return false;
+  }  
+  return true;
+}
+
+
+void gw_finish(int status, double total_cpu_time) {
+  double report_cpu_time;
+  
 #ifdef WANT_DCAPI
-  DC_finishClient(status);
-#else
+  // copy stderr/ stdout to DC-API equvialents
+  std::string resolved_filename;
+  resolved_filename = gw_resolve_filename(DC_LABEL_STDOUT);
+  gw_copy_file(STDOUT_FILE, resolved_filename.c_str());
+  resolved_filename = gw_resolve_filename(DC_LABEL_STDERR);
+  gw_copy_file(STDERR_FILE, resolved_filename.c_str());
+#endif // WANT_DCAPI
+#ifndef _WIN32
+  // currently we cannot measure cpu time on windows 
+  report_cpu_time = total_cpu_time;
+#endif // !_WIN32
+  if (total_cpu_time <= 0)
+    report_cpu_time = 1;
+  // hack to report cpu time -->
+  // if result is killed and restarted, only the cpu time
+  // of the last run will be reported
+  for (int i=0; i<3; i++) {
+    boinc_report_app_status(report_cpu_time, 0, 100);
+    sleep(1);
+  }  
+  char msg_buf[MSG_CHANNEL_SIZE];
+  sprintf(msg_buf,
+    "<current_cpu_time>%10.4f</current_cpu_time>\n"
+    "<checkpoint_cpu_time>%.15e</checkpoint_cpu_time>\n"
+    "<fraction_done>%2.8f</fraction_done>\n",
+    (double) report_cpu_time,
+    0.0,
+    100.0);
+  app_client_shm->shm->app_status.send_msg(msg_buf);
+  // <--
   boinc_finish(status);
-#endif        
 }

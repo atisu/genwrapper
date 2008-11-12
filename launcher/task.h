@@ -28,14 +28,13 @@ struct TASK {
   double final_cpu_time;
   double starting_cpu;
   // how much CPU time was used by tasks before this in the job file
-#ifdef _WIN32
   bool suspended;
-  double wall_cpu_time;
-  // for estimating CPU time on Win98/ME
+#ifdef _WIN32
   HANDLE pid_handle;
   HANDLE thread_handle;
 #else
     int pid;
+    // process id, also process group id of child 
 #endif
   void init();
   bool poll(int& status);
