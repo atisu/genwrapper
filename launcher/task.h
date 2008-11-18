@@ -24,19 +24,30 @@
 using std::vector;
 using std::string;
 
+#ifdef _WIN32
+// for SuspendProcess/ ResumeProcess
+typedef LONG ( NTAPI *_NtSuspendProcess )( IN HANDLE ProcessHandle );
+typedef LONG ( NTAPI *_NtResumeProcess )( IN HANDLE ProcessHandle );
+
+static _NtSuspendProcess NtSuspendProcess;
+static _NtResumeProcess NtResumeProcess;
+#endif
+
 struct TASK {
   double final_cpu_time;
-  double starting_cpu;
   // how much CPU time was used by tasks before this in the job file
+  double starting_cpu;
   bool suspended;
 #ifdef _WIN32
-  HANDLE pid_handle;
-  HANDLE thread_handle;
+  HANDLE hProcess;
+  HANDLE hThread;  
+  HANDLE hJobObject;
 #else
-    int pid;
-    // process id, also process group id of child 
+  // process id, also process group id of child 
+  int pid;
 #endif
-  void init();
+  TASK();
+  ~TASK();
   bool poll(int& status);
   int run(vector<string> &args);
   void kill();

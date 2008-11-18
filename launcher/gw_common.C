@@ -26,6 +26,7 @@
 #include "boinc_api.h"
 #include "gw_common.h"
 
+
 static const char *levels[] = {
   "Debug",
   "Info",
@@ -107,7 +108,7 @@ bool gw_copy_file(const char* src, const char* dst) {
 
 
 void gw_finish(int status, double total_cpu_time) {
-  double report_cpu_time;
+  double report_cpu_time=0;
   
 #ifdef WANT_DCAPI
   // copy stderr/ stdout to DC-API equvialents
@@ -127,7 +128,7 @@ void gw_finish(int status, double total_cpu_time) {
   // if result is killed and restarted, only the cpu time
   // of the last run will be reported
   for (int i=0; i<3; i++) {
-    boinc_report_app_status(report_cpu_time, 0, 100);
+    boinc_report_app_status(report_cpu_time, 0, 100);    
     sleep(1);
   }  
   char msg_buf[MSG_CHANNEL_SIZE];
@@ -142,3 +143,4 @@ void gw_finish(int status, double total_cpu_time) {
   // <--
   boinc_finish(status);
 }
+

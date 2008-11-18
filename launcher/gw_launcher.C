@@ -22,10 +22,10 @@
 #include <iostream>
 #include <fstream>
 #include <errno.h>
-#include <syslog.h>
 #ifdef _WIN32
 #include "boinc_win.h"
 #else
+#include <syslog.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/types.h>

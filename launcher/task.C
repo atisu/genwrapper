@@ -22,16 +22,21 @@
 #include <stdio.h>
 #include <errno.h>
 #include <vector>
+
 #ifdef _WIN32
+#ifdef _WIN32_WINNT
+#undef _WIN32_WINNT
+#endif
+#define _WIN32_WINNT 0x0500
+#define WIN32_LEAN_AND_MEAN
 #include "boinc_win.h"
+#include <process.h>
+#include <Tlhelp32.h>
 #else
 #include <unistd.h>
 #include <sys/wait.h>
 #endif // _WIN32
 #include "common.h"
-#ifdef WANT_DCAPI
-#include "dc_client.h"
-#endif // WANT_DCAPI
 #include "str_util.h"
 #include "util.h"
 #include "app_ipc.h"
@@ -40,7 +45,6 @@
 #include "task.h"
 
 #define POLL_PERIOD 1.0
-
 
 #ifdef _WIN32
 // CreateProcess() takes HANDLEs for the stdin/stdout.
@@ -88,14 +92,166 @@ HANDLE win_fopen(const char* path, const char* mode) {
     return 0;
   }
 }
+
+
+void killProcessesInJob(HANDLE hJobObject_) {
+  JOBOBJECT_BASIC_PROCESS_ID_LIST PidList;
+  unsigned int i;
+  HANDLE hOpenProcess;
+  if (!QueryInformationJobObject(hJobObject_, (JOBOBJECTINFOCLASS)3, &PidList,
+				 sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST)*2, 
+				 NULL)) {
+    gw_do_log(LOG_ERR, "failed to query information (%ld)", (long)GetLastError());
+  } else {
+    for (i=0; i<PidList.NumberOfProcessIdsInList; i++) {
+      hOpenProcess = OpenProcess(PROCESS_ALL_ACCESS, TRUE, PidList.ProcessIdList[i]);
+      if (hOpenProcess == NULL) {
+	gw_do_log(LOG_ERR, "%s: cannot open process", __FUNCTION__);
+      } else {  
+	// should be -2 ?
+	TerminateProcess(hOpenProcess, 2);
+	CloseHandle(hOpenProcess);
+      }
+    }
+  }
+}
+
+
+void suspendProcessesInJob(HANDLE hJobObject_) {
+  JOBOBJECT_BASIC_PROCESS_ID_LIST PidList;
+  unsigned int i;
+  HANDLE hOpenProcess;
+  if (!QueryInformationJobObject(hJobObject_, (JOBOBJECTINFOCLASS)3, &PidList,
+				 sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST)*2, 
+				 NULL)) {
+    gw_do_log(LOG_ERR, "failed to query information (%ld)", (long)GetLastError());
+  } else {
+    for (i=0; i<PidList.NumberOfProcessIdsInList; i++) {
+      hOpenProcess = OpenProcess(PROCESS_ALL_ACCESS, TRUE, PidList.ProcessIdList[i]);
+      if (hOpenProcess == NULL) {
+	gw_do_log(LOG_ERR, "%s: cannot open process", __FUNCTION__);
+      } else {  
+	NtSuspendProcess(hOpenProcess);
+	CloseHandle(hOpenProcess);
+      }
+    }
+  }
+}
+
+
+void resumeProcessesInJob(HANDLE hJobObject_) {
+  JOBOBJECT_BASIC_PROCESS_ID_LIST PidList;
+  unsigned int i;
+  HANDLE hOpenProcess;
+  if (!QueryInformationJobObject(hJobObject_, (JOBOBJECTINFOCLASS)3, &PidList,
+				 sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST)*2, 
+				 NULL)) {
+    gw_do_log(LOG_ERR, "failed to query information (%ld)", (long)GetLastError());
+  } else {
+    for (i=0; i<PidList.NumberOfProcessIdsInList; i++) {
+      hOpenProcess = OpenProcess(PROCESS_ALL_ACCESS, TRUE, PidList.ProcessIdList[i]);
+      if (hOpenProcess == NULL) {
+	gw_do_log(LOG_ERR, "%s: cannot open process", __FUNCTION__);
+      } else {  
+	NtResumeProcess(hOpenProcess);
+	CloseHandle(hOpenProcess);
+      }
+    }
+  }
+}
+
+
+BOOL addProcessesToJobObject(HANDLE hJobObject_) {
+  HANDLE hProcessSnap = INVALID_HANDLE_VALUE;
+  PROCESSENTRY32 pe32;
+  JOBOBJECT_BASIC_PROCESS_ID_LIST PidList;
+  unsigned int i;
+  HANDLE hOpenProcess = INVALID_HANDLE_VALUE;
+
+  hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0 );
+  if (hProcessSnap == INVALID_HANDLE_VALUE)
+    return( FALSE );
+  pe32.dwSize = sizeof(PROCESSENTRY32);
+
+  if( !Process32First( hProcessSnap, &pe32 ) ) {
+    printf( "Process32First" ); // Show cause of failure
+    CloseHandle( hProcessSnap ); // Must clean up the snapshot object!
+    return( FALSE );
+  }
+  if (!QueryInformationJobObject(hJobObject_, (JOBOBJECTINFOCLASS)3, &PidList, 
+				 sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST)*2, 
+				 NULL)) {
+    gw_do_log(LOG_ERR, "failed to query information (%ld)", (long)GetLastError());
+    return FALSE;
+  }
+  do {
+      for (i=0; i<PidList.NumberOfProcessIdsInList; i++) {
+	if( pe32.th32ParentProcessID == PidList.ProcessIdList[i] ) {
+	  hOpenProcess = OpenProcess(PROCESS_ALL_ACCESS, TRUE, pe32.th32ProcessID);
+	  if (hOpenProcess == NULL) {
+	    gw_do_log(LOG_ERR,"%s: cannot open process", __FUNCTION__);
+	    return FALSE;
+	  }
+	  if (!AssignProcessToJobObject(hJobObject_, hOpenProcess)) {
+	    gw_do_log(LOG_DEBUG, "cannot add process %d (parent: %d) to JobObject (%ld)", 
+		   pe32.th32ProcessID, PidList.ProcessIdList[i], (long)GetLastError());
+	    CloseHandle(hOpenProcess);
+	    return FALSE;
+	  } else {
+	    gw_do_log(LOG_DEBUG, "added process %d to JobObject", 
+		   PidList.ProcessIdList[i]);
+	  }
+	  CloseHandle(hOpenProcess);
+	} 
+      }
+  } while( Process32Next(hProcessSnap, &pe32 ) );
+  return TRUE;
+}
+
+void listProcessesInJob(HANDLE hJobObject) {
+  JOBOBJECT_BASIC_PROCESS_ID_LIST PidList;
+  unsigned int i;
+
+  if (!QueryInformationJobObject(hJobObject, (JOBOBJECTINFOCLASS)3, &PidList, 
+				 sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST)*2, 
+				 NULL)) {
+    gw_do_log(LOG_ERR, "failed to query information (%ld)", (long)GetLastError());
+  } else {
+    gw_do_log(LOG_DEBUG, "Process id-s in the JobObject:");
+    for (i=0; i<PidList.NumberOfProcessIdsInList; i++) {
+      gw_do_log(LOG_DEBUG, "%ld", PidList.ProcessIdList[i]);
+    }
+  }
+}
 #endif
+
+
+TASK::TASK() {
+#ifdef _WIN32
+  NtSuspendProcess = (_NtSuspendProcess) 
+    GetProcAddress( GetModuleHandle( "ntdll" ), "NtSuspendProcess" );
+  NtResumeProcess = (_NtResumeProcess) 
+    GetProcAddress( GetModuleHandle( "ntdll" ), "NtResumeProcess" );
+#endif
+}
+
+
+TASK::~TASK() {
+}
 
 
 int TASK::run(vector<string> &args) {
 #ifdef _WIN32
   PROCESS_INFORMATION process_info;
   STARTUPINFO startup_info;
+  SECURITY_ATTRIBUTES SecAttrs;
   string command;
+
+  SecAttrs.nLength = sizeof(SECURITY_ATTRIBUTES);
+  SecAttrs.bInheritHandle = TRUE;
+  SecAttrs.lpSecurityDescriptor = NULL;
+  // create a JobObject without a name to avoid collosions
+  hJobObject=CreateJobObject(&SecAttrs, NULL);
 
   ZeroMemory(&startup_info, sizeof(startup_info));
   ZeroMemory(&process_info, sizeof(process_info));
@@ -126,11 +282,14 @@ int TASK::run(vector<string> &args) {
     gw_do_log(LOG_ERR, "CreateProcess failed (%ld)\n", (long)GetLastError()); 
     return ERR_EXEC;
   }
-  pid_handle = process_info.hProcess;
-  thread_handle = process_info.hThread;
-  SetThreadPriority(thread_handle, THREAD_PRIORITY_IDLE);
+  hProcess = process_info.hProcess;
+  hThread = process_info.hThread;
+  SetThreadPriority(hThread, THREAD_PRIORITY_IDLE);
+  if (!AssignProcessToJobObject(hJobObject, hProcess)) {
+    gw_do_log(LOG_ERR, "failed to add current process to the JobObject");
+  }
+  gw_do_log(LOG_DEBUG, "CreateProcess returns %d", process_info.dwProcessId);
   suspended = false;
-  wall_cpu_time = 0;
 #else
   pid = fork();
   if (pid == -1) {
@@ -163,14 +322,21 @@ int TASK::run(vector<string> &args) {
 }
 
 bool TASK::poll(int& status) {
-  // no cpu-time measurement yet for windows ;(
 #ifdef _WIN32
   unsigned long exit_code;
-  if (GetExitCodeProcess(pid_handle, &exit_code)) {
+  JOBOBJECT_BASIC_ACCOUNTING_INFORMATION Rusage;
+  if (GetExitCodeProcess(hProcess, &exit_code)) {
     if (exit_code != STILL_ACTIVE) {
       status = exit_code;
-      // trivial validator needs cpu_time > 0
-      final_cpu_time = 1;
+      if (!QueryInformationJobObject(hJobObject, (JOBOBJECTINFOCLASS)1, &Rusage, 
+				     sizeof(JOBOBJECT_BASIC_ACCOUNTING_INFORMATION), 
+				     NULL)) {
+	gw_do_log(LOG_ERR, "failed to query information (%ld)", 
+		  (long)GetLastError());
+	final_cpu_time = 1;
+	return false;
+      }
+      final_cpu_time = ((long)Rusage.TotalUserTime.QuadPart) / 10000000;
       return true;
     }
   }
@@ -194,7 +360,7 @@ bool TASK::poll(int& status) {
 
 void TASK::kill() {
 #ifdef _WIN32
-  //TerminateProcess(pid_handle, -2);
+  ::killProcessesInJob(hJobObject);  
 #else
   ::killpg(pid, SIGKILL);
 #endif
@@ -203,7 +369,7 @@ void TASK::kill() {
 
 void TASK::stop() {
 #ifdef _WIN32
-  //SuspendThread(thread_handle);
+  ::suspendProcessesInJob(hJobObject);  
 #else
   ::killpg(pid, SIGSTOP);
 #endif
@@ -213,7 +379,7 @@ void TASK::stop() {
 
 void TASK::resume() {
 #ifdef _WIN32
-  //ResumeThread(thread_handle);
+  ::resumeProcessesInJob(hJobObject);  
 #else
   ::killpg(pid, SIGCONT);
 #endif

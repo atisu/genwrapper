@@ -16,6 +16,9 @@
 // or write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
+#ifndef __GW_COMMON_H__
+#define __GW_COMMON_H__
+
 #include <stdarg.h>
 #include <string>
 
@@ -28,8 +31,23 @@
 
 #endif // WANT_DCAPI
 
+#ifdef _WIN32
+enum {
+	LOG_DEBUG,
+	LOG_INFO,
+	LOG_NOTICE,
+	LOG_WARNING,
+	LOG_ERR,
+	LOG_CRIT
+};
+
+#define sleep(x)  Sleep((x)*1000)
+#endif
+
 void gw_do_log(int level, const char *fmt, ...);
 void gw_do_vlog(int level, const char *fmt, va_list ap);
 std::string gw_resolve_filename(const char *filename);
 bool gw_copy_file(const char* src, const char* dst);
 void gw_finish(int status, double total_cpu_time = 0);
+
+#endif // __GW_COMMON_H__
