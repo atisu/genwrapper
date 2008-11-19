@@ -35,6 +35,7 @@
 #else
 #include <unistd.h>
 #include <sys/wait.h>
+#include <syslog.h>
 #endif // _WIN32
 #include "common.h"
 #include "str_util.h"
