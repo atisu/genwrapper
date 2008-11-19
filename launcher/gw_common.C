@@ -118,29 +118,29 @@ void gw_finish(int status, double total_cpu_time) {
   resolved_filename = gw_resolve_filename(DC_LABEL_STDERR);
   gw_copy_file(STDERR_FILE, resolved_filename.c_str());
 #endif // WANT_DCAPI
-#ifndef _WIN32
-  // currently we cannot measure cpu time on windows 
   report_cpu_time = total_cpu_time;
-#endif // !_WIN32
   if (total_cpu_time <= 0)
     report_cpu_time = 1;
-  // hack to report cpu time -->
-  // if result is killed and restarted, only the cpu time
-  // of the last run will be reported
-  for (int i=0; i<3; i++) {
-    boinc_report_app_status(report_cpu_time, 0, 100);    
-    sleep(1);
-  }  
-  char msg_buf[MSG_CHANNEL_SIZE];
-  sprintf(msg_buf,
-    "<current_cpu_time>%10.4f</current_cpu_time>\n"
-    "<checkpoint_cpu_time>%.15e</checkpoint_cpu_time>\n"
-    "<fraction_done>%2.8f</fraction_done>\n",
-    (double) report_cpu_time,
-    0.0,
-    100.0);
-  app_client_shm->shm->app_status.send_msg(msg_buf);
-  // <--
+  // do not try to report time when running standalone
+  if (app_client_shm!=NULL) {
+    // hack to report cpu time -->
+    // if result is killed and restarted, only the cpu time
+    // of the last run will be reported
+    for (int i=0; i<3; i++) {
+      boinc_report_app_status(report_cpu_time, 0, 100);    
+      sleep(1);
+    }  
+    char msg_buf[MSG_CHANNEL_SIZE];
+    sprintf(msg_buf,
+	    "<current_cpu_time>%10.4f</current_cpu_time>\n"
+	    "<checkpoint_cpu_time>%.15e</checkpoint_cpu_time>\n"
+	    "<fraction_done>%2.8f</fraction_done>\n",
+	    (double) report_cpu_time,
+	    0.0,
+	    100.0);
+    app_client_shm->shm->app_status.send_msg(msg_buf);
+    // <--
+  }
   boinc_finish(status);
 }
 

@@ -16,8 +16,8 @@
 // or write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-#ifndef __GW_COMMON_H__
-#define __GW_COMMON_H__
+#ifndef GW_COMMON_H
+#define GW_COMMON_H
 
 #include <stdarg.h>
 #include <string>
@@ -50,4 +50,4 @@ std::string gw_resolve_filename(const char *filename);
 bool gw_copy_file(const char* src, const char* dst);
 void gw_finish(int status, double total_cpu_time = 0);
 
-#endif // __GW_COMMON_H__
+#endif // GW_COMMON_H

@@ -19,19 +19,13 @@
 // original by Andrew J. Younge (ajy4490@umiacs.umd.edu)
 //
 
+#ifndef GW_TASK_H
+#define GW_TASK_H
+
 #include <string>
 
 using std::vector;
 using std::string;
-
-#ifdef _WIN32
-// for SuspendProcess/ ResumeProcess
-typedef LONG ( NTAPI *_NtSuspendProcess )( IN HANDLE ProcessHandle );
-typedef LONG ( NTAPI *_NtResumeProcess )( IN HANDLE ProcessHandle );
-
-static _NtSuspendProcess NtSuspendProcess;
-static _NtResumeProcess NtResumeProcess;
-#endif
 
 struct TASK {
   double final_cpu_time;
@@ -54,3 +48,6 @@ struct TASK {
   void stop();
   void resume();
 };
+
+#endif // GW_TASK_H
+

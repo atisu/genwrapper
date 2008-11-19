@@ -47,6 +47,14 @@
 #define POLL_PERIOD 1.0
 
 #ifdef _WIN32
+
+// for SuspendProcess/ ResumeProcess
+typedef LONG ( NTAPI *_NtSuspendProcess )( IN HANDLE ProcessHandle );
+typedef LONG ( NTAPI *_NtResumeProcess )( IN HANDLE ProcessHandle );
+
+_NtSuspendProcess NtSuspendProcess;
+_NtResumeProcess NtResumeProcess;
+
 // CreateProcess() takes HANDLEs for the stdin/stdout.
 // We need to use CreateFile() to get them.  Ugh.
 HANDLE win_fopen(const char* path, const char* mode) {
@@ -94,7 +102,7 @@ HANDLE win_fopen(const char* path, const char* mode) {
 }
 
 
-void killProcessesInJob(HANDLE hJobObject_) {
+void controlProcessesInJob(HANDLE hJobObject_, BOOL bSuspend) {
   JOBOBJECT_BASIC_PROCESS_ID_LIST PidList;
   unsigned int i;
   HANDLE hOpenProcess;
@@ -108,56 +116,23 @@ void killProcessesInJob(HANDLE hJobObject_) {
       if (hOpenProcess == NULL) {
 	gw_do_log(LOG_ERR, "%s: cannot open process", __FUNCTION__);
       } else {  
-	// should be -2 ?
-	TerminateProcess(hOpenProcess, 2);
+	if (bSuspend)
+	  NtSuspendProcess(hOpenProcess);
+	else
+	  NtResumeProcess(hOpenProcess);
 	CloseHandle(hOpenProcess);
       }
     }
   }
-}
-
+} 
 
 void suspendProcessesInJob(HANDLE hJobObject_) {
-  JOBOBJECT_BASIC_PROCESS_ID_LIST PidList;
-  unsigned int i;
-  HANDLE hOpenProcess;
-  if (!QueryInformationJobObject(hJobObject_, (JOBOBJECTINFOCLASS)3, &PidList,
-				 sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST)*2, 
-				 NULL)) {
-    gw_do_log(LOG_ERR, "failed to query information (%ld)", (long)GetLastError());
-  } else {
-    for (i=0; i<PidList.NumberOfProcessIdsInList; i++) {
-      hOpenProcess = OpenProcess(PROCESS_ALL_ACCESS, TRUE, PidList.ProcessIdList[i]);
-      if (hOpenProcess == NULL) {
-	gw_do_log(LOG_ERR, "%s: cannot open process", __FUNCTION__);
-      } else {  
-	NtSuspendProcess(hOpenProcess);
-	CloseHandle(hOpenProcess);
-      }
-    }
-  }
+  controlProcessesInJob(hJobObject_, TRUE);
 }
 
 
 void resumeProcessesInJob(HANDLE hJobObject_) {
-  JOBOBJECT_BASIC_PROCESS_ID_LIST PidList;
-  unsigned int i;
-  HANDLE hOpenProcess;
-  if (!QueryInformationJobObject(hJobObject_, (JOBOBJECTINFOCLASS)3, &PidList,
-				 sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST)*2, 
-				 NULL)) {
-    gw_do_log(LOG_ERR, "failed to query information (%ld)", (long)GetLastError());
-  } else {
-    for (i=0; i<PidList.NumberOfProcessIdsInList; i++) {
-      hOpenProcess = OpenProcess(PROCESS_ALL_ACCESS, TRUE, PidList.ProcessIdList[i]);
-      if (hOpenProcess == NULL) {
-	gw_do_log(LOG_ERR, "%s: cannot open process", __FUNCTION__);
-      } else {  
-	NtResumeProcess(hOpenProcess);
-	CloseHandle(hOpenProcess);
-      }
-    }
-  }
+  controlProcessesInJob(hJobObject_, FALSE);
 }
 
 
@@ -360,7 +335,8 @@ bool TASK::poll(int& status) {
 
 void TASK::kill() {
 #ifdef _WIN32
-  ::killProcessesInJob(hJobObject);  
+  // should be -2 ?
+  TerminateJobObject(hJobObject, 2);
 #else
   ::killpg(pid, SIGKILL);
 #endif
