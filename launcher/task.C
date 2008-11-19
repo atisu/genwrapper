@@ -222,6 +222,7 @@ int TASK::run(vector<string> &args) {
   SECURITY_ATTRIBUTES SecAttrs;
   string command;
 
+  ZeroMemory(&SecAttrs, sizeof(SECURITY_ATTRIBUTES));
   SecAttrs.nLength = sizeof(SECURITY_ATTRIBUTES);
   SecAttrs.bInheritHandle = TRUE;
   SecAttrs.lpSecurityDescriptor = NULL;
