@@ -49,7 +49,7 @@
 #endif // _WIN32
 #define PROFILE_SCRIPT  "profile.sh"
 #define EXEC_SCRIPT     "gw_tmp.sh"
-#define POLL_PERIOD     1.0
+#define POLL_PERIOD     0.5
 
 #ifndef _MAX_PATH
 #define _MAX_PATH 255

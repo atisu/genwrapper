@@ -103,6 +103,31 @@ HANDLE win_fopen(const char* path, const char* mode) {
 }
 
 
+// not used currently
+void killProcessesInJob(HANDLE hJobObject_) {
+  JOBOBJECT_BASIC_PROCESS_ID_LIST PidList;
+  unsigned int i;
+  HANDLE hOpenProcess;
+  if (!QueryInformationJobObject(hJobObject_,  (JOBOBJECTINFOCLASS)3, &PidList,
+				 sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST)*2, NULL)) {
+    printf("\nfailed to query information (%ld)\n", (long)GetLastError());
+  } else {
+    for (i=0; i<PidList.NumberOfProcessIdsInList; i++) {
+      hOpenProcess = OpenProcess(PROCESS_ALL_ACCESS, TRUE, PidList.ProcessIdList[i]);
+      if (hOpenProcess == NULL) {
+	gw_do_log(LOG_ERR, "%s: cannot open process", __FUNCTION__);
+      } else {  
+	if (!TerminateProcess(hOpenProcess, 2)) {
+	  gw_do_log(LOG_ERR, "cannot kill process %d (%ld)", PidList.ProcessIdList[i], 
+		    (long)GetLastError()); 
+	}
+	CloseHandle(hOpenProcess);
+      }
+    }
+  }
+}
+
+
 void controlProcessesInJob(HANDLE hJobObject_, BOOL bSuspend) {
   JOBOBJECT_BASIC_PROCESS_ID_LIST PidList;
   unsigned int i;
@@ -250,7 +275,7 @@ int TASK::run(vector<string> &args) {
 		     NULL,
 		     NULL,
 		     true,		// bInheritHandles
-		     CREATE_NO_WINDOW|IDLE_PRIORITY_CLASS,
+		     CREATE_NO_WINDOW|IDLE_PRIORITY_CLASS|CREATE_NEW_PROCESS_GROUP,
 		     NULL,
 		     NULL,
 		     &startup_info,
@@ -302,6 +327,9 @@ bool TASK::poll(int& status) {
 #ifdef _WIN32
   unsigned long exit_code;
   JOBOBJECT_BASIC_ACCOUNTING_INFORMATION Rusage;
+  // add new processes to job
+  addProcessesToJobObject(hJobObject);
+  listProcessesInJob(hJobObject);
   if (GetExitCodeProcess(hProcess, &exit_code)) {
     if (exit_code != STILL_ACTIVE) {
       status = exit_code;
@@ -316,7 +344,7 @@ bool TASK::poll(int& status) {
       final_cpu_time = ((long)Rusage.TotalUserTime.QuadPart) / 10000000;
       return true;
     }
-  }
+  }  
 #else
   int wpid, wait_status;
   struct rusage ru;
@@ -337,8 +365,9 @@ bool TASK::poll(int& status) {
 
 void TASK::kill() {
 #ifdef _WIN32
-  // should be -2 ?
-  TerminateJobObject(hJobObject, 2);
+  // should be -1 ?
+  TerminateJobObject(hJobObject, 1);
+  //::killProcessesInJob(hJobObject);
 #else
   ::killpg(pid, SIGKILL);
 #endif
