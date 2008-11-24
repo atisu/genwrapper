@@ -120,7 +120,7 @@ int main(int argc, char* argv[]) {
   double frac_done = 0.0; 
   BOINC_OPTIONS options;
 
-  fprintf(stdout, "Launcher for GenWrapper (build date %s)\n", __DATE__);
+  fprintf(stdout, "Launcher for GenWrapper (build date %s, %s)\n", __DATE__, LAUNCHER_SVN_REV);
 
   memset(&options, 0, sizeof(options));
   options.main_program = true;
