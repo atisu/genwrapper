@@ -66,6 +66,7 @@ static const char* dc_files[] = {
 };
 #endif
 
+const char* WU_SCRIPT = "wu_script.sh";
 
 // from unzip.c in libbb
 extern "C" {
@@ -184,6 +185,11 @@ int main(int argc, char* argv[]) {
     gw_finish(255);  
   }
   const char *wu_script = argv[1];
+  if (wu_script == NULL) {
+    gw_do_log(LOG_ERR, "Work unit does not contain work unit script name (should be first command line param), "
+	      "going with default name (%s)", WU_SCRIPT);
+    wu_script = WU_SCRIPT;
+  }
   if (access(wu_script, R_OK)) {
     gw_do_log(LOG_ERR, "Script '%s' does not exist", wu_script);
     gw_finish(255);        
