@@ -3574,7 +3574,7 @@ static void
 xtcsetpgrp(int fd, pid_t pgrp)
 {
 	if (tcsetpgrp(fd, pgrp))
-		ash_msg_and_raise_error("cannot set tty process group (%m)");
+	  ash_msg_and_raise_error("cannot set tty process group (%s)", strerror(errno));
 }
 
 /*
@@ -4959,12 +4959,16 @@ copyfd(int from, int to)
 	return fd;
 #else
 	int newfd;
+	int myerrno;
 
 	newfd = fcntl(from, F_DUPFD, to);
 	if (newfd < 0) {
-		if (errno == EMFILE)
-			return EMPTY;
-		ash_msg_and_raise_error("%d: %m", from);
+	  myerrno = errno;
+	  if (myerrno == EMFILE)
+	    return EMPTY;
+	  /* atisu: do not exit with failure if source fd is not open. will retry. */
+	  if (myerrno != EBADF)
+	    ash_msg_and_raise_error("%d: %s", from, strerror(myerrno));
 	}
 	return newfd;
 #endif
@@ -5045,7 +5049,7 @@ redirect(union node *redir, int flags)
 				if (i != EBADF) {
 					close(newfd);
 					errno = i;
-					ash_msg_and_raise_error("%d: %m", fd);
+					ash_msg_and_raise_error("%d: %s", fd, strerror(errno));
 					/* NOTREACHED */
 				}
 			} else {
@@ -12376,7 +12380,7 @@ ulimitcmd(int argc ATTRIBUTE_UNUSED, char **argv ATTRIBUTE_UNUSED)
 		if (how & SOFT)
 			limit.rlim_cur = val;
 		if (setrlimit(l->cmd, &limit) < 0)
-			ash_msg_and_raise_error("error setting limit (%m)");
+		  ash_msg_and_raise_error("error setting limit (%s)", strerror(errno));
 	} else {
 		printlim(how, &limit, l);
 	}
