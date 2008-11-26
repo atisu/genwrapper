@@ -151,7 +151,7 @@ int main(int argc, char* argv[]) {
 #endif
 
   if (argc < 2)
-    gw_do_log(LOG_WARNING, "Warging: no script listed on the command line");
+    gw_do_log(LOG_WARNING, "No workunit script name listed on the command line");
   // Look for & unzip the .zip archive, if any
   std::string filename(basename(argv[0]));
 
