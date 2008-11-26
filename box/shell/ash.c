@@ -4959,16 +4959,14 @@ copyfd(int from, int to)
 	return fd;
 #else
 	int newfd;
-	int myerrno;
 
 	newfd = fcntl(from, F_DUPFD, to);
 	if (newfd < 0) {
-	  myerrno = errno;
-	  if (myerrno == EMFILE)
+	  if (errno == EMFILE)
 	    return EMPTY;
 	  /* atisu: do not exit with failure if source fd is not open. will retry. */
-	  if (myerrno != EBADF)
-	    ash_msg_and_raise_error("%d: %s", from, strerror(myerrno));
+	  if (errno != EBADF)
+	    ash_msg_and_raise_error("%d: %s", from, strerror(errno));
 	}
 	return newfd;
 #endif
