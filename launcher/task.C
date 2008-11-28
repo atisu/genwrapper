@@ -142,10 +142,23 @@ void controlProcessesInJob(HANDLE hJobObject_, BOOL bSuspend) {
       if (hOpenProcess == NULL) {
 	gw_do_log(LOG_ERR, "%s: cannot open process", __FUNCTION__);
       } else {  
-	if (bSuspend)
-	  NtSuspendProcess(hOpenProcess);
-	else
-	  NtResumeProcess(hOpenProcess);
+	if (bSuspend) {
+	  NtSuspendProcess = 0;
+	  NtSuspendProcess = (_NtSuspendProcess) 
+	    GetProcAddress( GetModuleHandle( "ntdll" ), "NtSuspendProcess" );
+	  if (NtSuspendProcess)
+	    NtSuspendProcess(hOpenProcess);
+	  else 
+	    gw_do_log(LOG_ERR, "Cannot import NtSuspendProcess() from ntdll");	  
+	} else {
+	  NtResumeProcess = 0;
+	  NtResumeProcess = (_NtResumeProcess) 
+	    GetProcAddress( GetModuleHandle( "ntdll" ), "NtResumeProcess" );
+	  if (NtResumeProcess)
+	    NtResumeProcess(hOpenProcess);
+	  else 
+	    gw_do_log(LOG_ERR, "Cannot import NtResumeProcess() from ntdll");
+	}
 	CloseHandle(hOpenProcess);
       }
     }
@@ -175,7 +188,7 @@ BOOL addProcessesToJobObject(HANDLE hJobObject_) {
   pe32.dwSize = sizeof(PROCESSENTRY32);
 
   if( !Process32First( hProcessSnap, &pe32 ) ) {
-    printf( "Process32First" ); // Show cause of failure
+    gw_do_log(LOG_ERR, "Process32First() failed" ); // Show cause of failure
     CloseHandle( hProcessSnap ); // Must clean up the snapshot object!
     return( FALSE );
   }
@@ -191,11 +204,13 @@ BOOL addProcessesToJobObject(HANDLE hJobObject_) {
 	  hOpenProcess = OpenProcess(PROCESS_ALL_ACCESS, TRUE, pe32.th32ProcessID);
 	  if (hOpenProcess == NULL) {
 	    gw_do_log(LOG_ERR,"%s: cannot open process", __FUNCTION__);
+	    CloseHandle(hProcessSnap);
 	    return FALSE;
 	  }
 	  if (!AssignProcessToJobObject(hJobObject_, hOpenProcess)) {
-	    gw_do_log(LOG_DEBUG, "cannot add process %d (parent: %d) to JobObject (%ld)", 
-		   pe32.th32ProcessID, PidList.ProcessIdList[i], (long)GetLastError());
+	    //gw_do_log(LOG_DEBUG, "cannot add process %d (parent: %d) to JobObject (%ld)", 
+	    //   pe32.th32ProcessID, PidList.ProcessIdList[i], (long)GetLastError());
+	    CloseHandle(hProcessSnap);
 	    CloseHandle(hOpenProcess);
 	    return FALSE;
 	  } else {
@@ -206,6 +221,7 @@ BOOL addProcessesToJobObject(HANDLE hJobObject_) {
 	} 
       }
   } while( Process32Next(hProcessSnap, &pe32 ) );
+  CloseHandle(hProcessSnap);
   return TRUE;
 }
 
@@ -225,20 +241,6 @@ void listProcessesInJob(HANDLE hJobObject) {
   }
 }
 #endif
-
-
-TASK::TASK() {
-#ifdef _WIN32
-  NtSuspendProcess = (_NtSuspendProcess) 
-    GetProcAddress( GetModuleHandle( "ntdll" ), "NtSuspendProcess" );
-  NtResumeProcess = (_NtResumeProcess) 
-    GetProcAddress( GetModuleHandle( "ntdll" ), "NtResumeProcess" );
-#endif
-}
-
-
-TASK::~TASK() {
-}
 
 
 int TASK::run(vector<string> &args) {
@@ -329,7 +331,7 @@ bool TASK::poll(int& status) {
   JOBOBJECT_BASIC_ACCOUNTING_INFORMATION Rusage;
   // add new processes to job
   addProcessesToJobObject(hJobObject);
-  listProcessesInJob(hJobObject);
+  //listProcessesInJob(hJobObject);
   if (GetExitCodeProcess(hProcess, &exit_code)) {
     if (exit_code != STILL_ACTIVE) {
       status = exit_code;

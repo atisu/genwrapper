@@ -40,8 +40,6 @@ struct TASK {
   // process id, also process group id of child 
   int pid;
 #endif
-  TASK();
-  ~TASK();
   bool poll(int& status);
   int run(vector<string> &args);
   void kill();
