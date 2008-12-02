@@ -43,18 +43,18 @@
 #include "error_numbers.h"
 
 #ifdef _WIN32
-#define GENWRAPPER_EXE  "gitbox.exe"
+#define GENWRAPPER_EXE   "gitbox.exe"
 #else
-#define GENWRAPPER_EXE  "./gitbox"
+#define GENWRAPPER_EXE   "./gitbox"
 #endif // _WIN32
-#define PROFILE_SCRIPT  "profile.sh"
-#define EXEC_SCRIPT     "gw_tmp.sh"
-#define POLL_PERIOD     0.5
+#define PROFILE_SCRIPT   "profile.sh"
+#define EXEC_SCRIPT      "gw_tmp.sh"
+#define POLL_PERIOD      0.5
 #define LAUNCHER_SVN_REV "$Revision$"
-
 #ifndef _MAX_PATH
-#define _MAX_PATH 255
+#define _MAX_PATH        255
 #endif
+
 
 #ifdef WANT_DCAPI
 static const char* dc_files[] = {

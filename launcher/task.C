@@ -45,13 +45,11 @@
 #include "gw_common.h"
 #include "task.h"
 
-#define POLL_PERIOD 1.0
-
 #ifdef _WIN32
 
 // for SuspendProcess/ ResumeProcess
-typedef LONG ( NTAPI *_NtSuspendProcess )( IN HANDLE ProcessHandle );
-typedef LONG ( NTAPI *_NtResumeProcess )( IN HANDLE ProcessHandle );
+typedef LONG (NTAPI *_NtSuspendProcess)(IN HANDLE ProcessHandle);
+typedef LONG (NTAPI *_NtResumeProcess)(IN HANDLE ProcessHandle);
 
 _NtSuspendProcess NtSuspendProcess;
 _NtResumeProcess NtResumeProcess;
@@ -98,7 +96,7 @@ HANDLE win_fopen(const char* path, const char* mode) {
     SetFilePointer(hAppend, 0, NULL, FILE_END);
     return hAppend;
   } else {
-    return 0;
+    return INVALID_HANDLE_VALUE;
   }
 }
 
@@ -110,7 +108,7 @@ void killProcessesInJob(HANDLE hJobObject_) {
   HANDLE hOpenProcess;
   if (!QueryInformationJobObject(hJobObject_,  (JOBOBJECTINFOCLASS)3, &PidList,
 				 sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST)*2, NULL)) {
-    printf("\nfailed to query information (%ld)\n", (long)GetLastError());
+    gw_do_log(LOG_ERR, "%s: failed to query information (%ld)\n", __FUNCTION__, (long)GetLastError());
   } else {
     for (i=0; i<PidList.NumberOfProcessIdsInList; i++) {
       hOpenProcess = OpenProcess(PROCESS_ALL_ACCESS, TRUE, PidList.ProcessIdList[i]);
@@ -118,8 +116,8 @@ void killProcessesInJob(HANDLE hJobObject_) {
 	gw_do_log(LOG_ERR, "%s: cannot open process", __FUNCTION__);
       } else {  
 	if (!TerminateProcess(hOpenProcess, 2)) {
-	  gw_do_log(LOG_ERR, "cannot kill process %d (%ld)", PidList.ProcessIdList[i], 
-		    (long)GetLastError()); 
+	  gw_do_log(LOG_ERR, "%s: cannot kill process %d (%ld)", PidList.ProcessIdList[i], 
+		    __FUNCTION__, (long)GetLastError()); 
 	}
 	CloseHandle(hOpenProcess);
       }
@@ -135,7 +133,7 @@ void controlProcessesInJob(HANDLE hJobObject_, BOOL bSuspend) {
   if (!QueryInformationJobObject(hJobObject_, (JOBOBJECTINFOCLASS)3, &PidList,
 				 sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST)*2, 
 				 NULL)) {
-    gw_do_log(LOG_ERR, "failed to query information (%ld)", (long)GetLastError());
+    gw_do_log(LOG_ERR, "%s: failed to query information (%ld)", __FUNCTION__, (long)GetLastError());
   } else {
     for (i=0; i<PidList.NumberOfProcessIdsInList; i++) {
       hOpenProcess = OpenProcess(PROCESS_ALL_ACCESS, TRUE, PidList.ProcessIdList[i]);
@@ -149,7 +147,7 @@ void controlProcessesInJob(HANDLE hJobObject_, BOOL bSuspend) {
 	  if (NtSuspendProcess)
 	    NtSuspendProcess(hOpenProcess);
 	  else 
-	    gw_do_log(LOG_ERR, "Cannot import NtSuspendProcess() from ntdll");	  
+	    gw_do_log(LOG_ERR, "%s: cannot import NtSuspendProcess() from ntdll", __FUNCTION__);	  
 	} else {
 	  NtResumeProcess = 0;
 	  NtResumeProcess = (_NtResumeProcess) 
@@ -157,7 +155,7 @@ void controlProcessesInJob(HANDLE hJobObject_, BOOL bSuspend) {
 	  if (NtResumeProcess)
 	    NtResumeProcess(hOpenProcess);
 	  else 
-	    gw_do_log(LOG_ERR, "Cannot import NtResumeProcess() from ntdll");
+	    gw_do_log(LOG_ERR, "%s: cannot import NtResumeProcess() from ntdll", __FUNCTION__);
 	}
 	CloseHandle(hOpenProcess);
       }
@@ -175,55 +173,55 @@ void resumeProcessesInJob(HANDLE hJobObject_) {
 }
 
 
-BOOL addProcessesToJobObject(HANDLE hJobObject_) {
-  HANDLE hProcessSnap = INVALID_HANDLE_VALUE;
+bool addProcessesToJobObject(HANDLE hJobObject_) {
   PROCESSENTRY32 pe32;
   JOBOBJECT_BASIC_PROCESS_ID_LIST PidList;
   unsigned int i;
   HANDLE hOpenProcess = INVALID_HANDLE_VALUE;
+  HANDLE hProcessSnap = INVALID_HANDLE_VALUE;
 
-  hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0 );
+  hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
   if (hProcessSnap == INVALID_HANDLE_VALUE)
-    return( FALSE );
+    return false;
   pe32.dwSize = sizeof(PROCESSENTRY32);
 
   if( !Process32First( hProcessSnap, &pe32 ) ) {
-    gw_do_log(LOG_ERR, "Process32First() failed" ); // Show cause of failure
-    CloseHandle( hProcessSnap ); // Must clean up the snapshot object!
-    return( FALSE );
+    gw_do_log(LOG_ERR, "%s: Process32First() failed", __FUNCTION__ );
+    CloseHandle(hProcessSnap);
+    return false;
   }
   if (!QueryInformationJobObject(hJobObject_, (JOBOBJECTINFOCLASS)3, &PidList, 
 				 sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST)*2, 
 				 NULL)) {
-    gw_do_log(LOG_ERR, "failed to query information (%ld)", (long)GetLastError());
-    return FALSE;
+    gw_do_log(LOG_ERR, "%s: failed to query information (%ld)", __FUNCTION__, (long)GetLastError());
+    CloseHandle(hProcessSnap);
+    return false;
   }
   do {
       for (i=0; i<PidList.NumberOfProcessIdsInList; i++) {
-	if( pe32.th32ParentProcessID == PidList.ProcessIdList[i] ) {
+	if (pe32.th32ParentProcessID == PidList.ProcessIdList[i]) {
 	  hOpenProcess = OpenProcess(PROCESS_ALL_ACCESS, TRUE, pe32.th32ProcessID);
 	  if (hOpenProcess == NULL) {
-	    gw_do_log(LOG_ERR,"%s: cannot open process", __FUNCTION__);
+	    gw_do_log(LOG_ERR, "%s: cannot open process", __FUNCTION__);
 	    CloseHandle(hProcessSnap);
-	    return FALSE;
+	    return false;
 	  }
 	  if (!AssignProcessToJobObject(hJobObject_, hOpenProcess)) {
-	    //gw_do_log(LOG_DEBUG, "cannot add process %d (parent: %d) to JobObject (%ld)", 
-	    //   pe32.th32ProcessID, PidList.ProcessIdList[i], (long)GetLastError());
 	    CloseHandle(hProcessSnap);
 	    CloseHandle(hOpenProcess);
-	    return FALSE;
+	    return false;
 	  } else {
-	    gw_do_log(LOG_DEBUG, "added process %d to JobObject", 
-		   PidList.ProcessIdList[i]);
+	    gw_do_log(LOG_DEBUG, "%s: added process %d to JobObject", 
+		      __FUNCTION__, PidList.ProcessIdList[i]);
 	  }
 	  CloseHandle(hOpenProcess);
 	} 
       }
-  } while( Process32Next(hProcessSnap, &pe32 ) );
+  } while(Process32Next(hProcessSnap, &pe32));
   CloseHandle(hProcessSnap);
-  return TRUE;
+  return true;
 }
+
 
 void listProcessesInJob(HANDLE hJobObject) {
   JOBOBJECT_BASIC_PROCESS_ID_LIST PidList;
@@ -232,11 +230,11 @@ void listProcessesInJob(HANDLE hJobObject) {
   if (!QueryInformationJobObject(hJobObject, (JOBOBJECTINFOCLASS)3, &PidList, 
 				 sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST)*2, 
 				 NULL)) {
-    gw_do_log(LOG_ERR, "failed to query information (%ld)", (long)GetLastError());
+    gw_do_log(LOG_ERR, "%s: failed to query information (%ld)", __FUNCTION__, (long)GetLastError());
   } else {
-    gw_do_log(LOG_DEBUG, "Process id-s in the JobObject:");
+    gw_do_log(LOG_DEBUG, "%s: Process id-s in the JobObject:", __FUNCTION__);
     for (i=0; i<PidList.NumberOfProcessIdsInList; i++) {
-      gw_do_log(LOG_DEBUG, "%ld", PidList.ProcessIdList[i]);
+      gw_do_log(LOG_DEBUG, "%s: %ld", __FUNCTION__, PidList.ProcessIdList[i]);
     }
   }
 }
@@ -277,13 +275,13 @@ int TASK::run(vector<string> &args) {
 		     NULL,
 		     NULL,
 		     true,		// bInheritHandles
-		     CREATE_NO_WINDOW|IDLE_PRIORITY_CLASS|CREATE_NEW_PROCESS_GROUP,
+		     CREATE_NO_WINDOW | IDLE_PRIORITY_CLASS | CREATE_NEW_PROCESS_GROUP,
 		     NULL,
 		     NULL,
 		     &startup_info,
 		     &process_info
 		     )) {
-    gw_do_log(LOG_ERR, "CreateProcess failed (%ld)\n", (long)GetLastError()); 
+    gw_do_log(LOG_ERR, "CreateProcess failed (%ld)", (long)GetLastError()); 
     return ERR_EXEC;
   }
   hProcess = process_info.hProcess;
@@ -329,16 +327,15 @@ bool TASK::poll(int& status) {
 #ifdef _WIN32
   unsigned long exit_code;
   JOBOBJECT_BASIC_ACCOUNTING_INFORMATION Rusage;
-  // add new processes to job
+
   addProcessesToJobObject(hJobObject);
-  //listProcessesInJob(hJobObject);
   if (GetExitCodeProcess(hProcess, &exit_code)) {
     if (exit_code != STILL_ACTIVE) {
       status = exit_code;
       if (!QueryInformationJobObject(hJobObject, (JOBOBJECTINFOCLASS)1, &Rusage, 
 				     sizeof(JOBOBJECT_BASIC_ACCOUNTING_INFORMATION), 
 				     NULL)) {
-	gw_do_log(LOG_ERR, "failed to query information (%ld)", 
+	gw_do_log(LOG_ERR, "failed to query information on JobObject (%ld)", 
 		  (long)GetLastError());
 	final_cpu_time = 1;
 	return false;
@@ -369,7 +366,6 @@ void TASK::kill() {
 #ifdef _WIN32
   // should be -1 ?
   TerminateJobObject(hJobObject, 1);
-  //::killProcessesInJob(hJobObject);
 #else
   ::killpg(pid, SIGKILL);
 #endif
@@ -394,4 +390,3 @@ void TASK::resume() {
 #endif
   suspended = false;
 }
-
