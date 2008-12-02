@@ -338,8 +338,6 @@ bool TASK::poll(int& status) {
     } else {
       final_cpu_time = ((long)Rusage.TotalUserTime.QuadPart) / 10000000;
     }
-    if (final_cpu_time < 1)
-      final_cpu_time = 1;
     gw_report_cpu_time(final_cpu_time, false);
     if (exit_code != STILL_ACTIVE) {
       status = exit_code;
