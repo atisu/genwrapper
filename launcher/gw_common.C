@@ -127,7 +127,7 @@ void gw_report_cpu_time(double total_cpu_time, bool final) {
 
   if (app_client_shm == NULL)
     return;
-  if (report_cpu_time <= 0)
+  if (report_cpu_time <= 1)
     report_cpu_time = 1;
   // do not try to report time when running standalone
   // hack to report cpu time -->
