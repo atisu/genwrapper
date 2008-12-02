@@ -49,5 +49,5 @@ void gw_do_vlog(int level, const char *fmt, va_list ap);
 std::string gw_resolve_filename(const char *filename);
 bool gw_copy_file(const char* src, const char* dst);
 void gw_finish(int status, double total_cpu_time = 0);
-
+void gw_report_cpu_time(double total_cpu_time, bool final = true);
 #endif // GW_COMMON_H

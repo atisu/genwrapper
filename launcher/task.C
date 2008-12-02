@@ -330,17 +330,19 @@ bool TASK::poll(int& status) {
 
   addProcessesToJobObject(hJobObject);
   if (GetExitCodeProcess(hProcess, &exit_code)) {
+    if (!QueryInformationJobObject(hJobObject, (JOBOBJECTINFOCLASS)1, &Rusage, 
+				   sizeof(JOBOBJECT_BASIC_ACCOUNTING_INFORMATION), 
+				   NULL)) {
+      gw_do_log(LOG_ERR, "failed to query information on JobObject (%ld)", 
+		(long)GetLastError());
+    } else {
+      final_cpu_time = ((long)Rusage.TotalUserTime.QuadPart) / 10000000;
+    }
+    if (final_cpu_time < 1)
+      final_cpu_time = 1;
+    gw_report_cpu_time(final_cpu_time, false);
     if (exit_code != STILL_ACTIVE) {
       status = exit_code;
-      if (!QueryInformationJobObject(hJobObject, (JOBOBJECTINFOCLASS)1, &Rusage, 
-				     sizeof(JOBOBJECT_BASIC_ACCOUNTING_INFORMATION), 
-				     NULL)) {
-	gw_do_log(LOG_ERR, "failed to query information on JobObject (%ld)", 
-		  (long)GetLastError());
-	final_cpu_time = 1;
-	return false;
-      }
-      final_cpu_time = ((long)Rusage.TotalUserTime.QuadPart) / 10000000;
       return true;
     }
   }  

@@ -108,8 +108,6 @@ bool gw_copy_file(const char* src, const char* dst) {
 
 
 void gw_finish(int status, double total_cpu_time) {
-  double report_cpu_time=0;
-  
 #ifdef WANT_DCAPI
   // copy stderr/ stdout to DC-API equvialents
   std::string resolved_filename;
@@ -118,29 +116,42 @@ void gw_finish(int status, double total_cpu_time) {
   resolved_filename = gw_resolve_filename(DC_LABEL_STDERR);
   gw_copy_file(STDERR_FILE, resolved_filename.c_str());
 #endif // WANT_DCAPI
-  report_cpu_time = total_cpu_time;
-  if (total_cpu_time <= 0)
+  gw_report_cpu_time(total_cpu_time);
+  boinc_finish(status);
+}
+
+
+void gw_report_cpu_time(double total_cpu_time, bool final) {
+  double report_cpu_time = total_cpu_time;
+  char msg_buf[MSG_CHANNEL_SIZE];
+
+  if (app_client_shm == NULL)
+    return;
+  if (report_cpu_time <= 0)
     report_cpu_time = 1;
   // do not try to report time when running standalone
-  if (app_client_shm!=NULL) {
-    // hack to report cpu time -->
-    // if result is killed and restarted, only the cpu time
-    // of the last run will be reported
+  // hack to report cpu time -->
+  // if result is killed and restarted, only the cpu time
+  // of the last run will be reported
+  if (final) {
     for (int i=0; i<3; i++) {
       boinc_report_app_status(report_cpu_time, 0, 100);    
       sleep(1);
-    }  
-    char msg_buf[MSG_CHANNEL_SIZE];
+    }
     sprintf(msg_buf,
 	    "<current_cpu_time>%10.4f</current_cpu_time>\n"
 	    "<checkpoint_cpu_time>%.15e</checkpoint_cpu_time>\n"
 	    "<fraction_done>%2.8f</fraction_done>\n",
-	    (double) report_cpu_time,
+	    report_cpu_time,
 	    0.0,
 	    100.0);
-    app_client_shm->shm->app_status.send_msg(msg_buf);
-    // <--
+  } else {
+    sprintf(msg_buf,
+	    "<current_cpu_time>%10.4f</current_cpu_time>\n"
+	    "<checkpoint_cpu_time>%.15e</checkpoint_cpu_time>\n",
+	    report_cpu_time,
+	    0.0);
   }
-  boinc_finish(status);
+  app_client_shm->shm->app_status.send_msg(msg_buf);
+  // <--  
 }
-
