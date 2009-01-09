@@ -241,6 +241,11 @@ void listProcessesInJob(HANDLE hJobObject) {
 #endif
 
 
+TASK::TASK() {
+  frac_done = 0.0;
+}
+
+
 int TASK::run(vector<string> &args) {
 #ifdef _WIN32
   PROCESS_INFORMATION process_info;
@@ -324,6 +329,11 @@ int TASK::run(vector<string> &args) {
 }
 
 bool TASK::poll(int& status) {
+
+  double frac_done_t = gw_read_fraction_done();
+  if (frac_done_t > frac_done)
+    frac_done = frac_done_t;
+
 #ifdef _WIN32
   unsigned long exit_code;
   JOBOBJECT_BASIC_ACCOUNTING_INFORMATION Rusage;
@@ -338,7 +348,7 @@ bool TASK::poll(int& status) {
     } else {
       final_cpu_time = ((long)Rusage.TotalUserTime.QuadPart) / 10000000;
     }
-    gw_report_cpu_time(final_cpu_time, false);
+    gw_report_status(final_cpu_time, frac_done, false);
     if (exit_code != STILL_ACTIVE) {
       status = exit_code;
       return true;
@@ -348,16 +358,18 @@ bool TASK::poll(int& status) {
   int wpid, wait_status;
   struct rusage ru;
 
-  wpid = wait4(pid, &wait_status, WNOHANG, &ru);
+  wpid = wait4(-pid, &wait_status, WNOHANG, &ru);
   if (wpid) {
     if (WIFSIGNALED(wait_status))
       status = 255;
     else
       status = WEXITSTATUS(wait_status);
     final_cpu_time = (float)ru.ru_utime.tv_sec + ((float)ru.ru_utime.tv_usec)/1e+6;
+    gw_report_status(final_cpu_time, frac_done, false);
     return true;
   }
 #endif
+  gw_report_fraction_done(frac_done);
   return false;
 }
 

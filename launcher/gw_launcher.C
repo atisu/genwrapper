@@ -32,6 +32,7 @@
 #include <sys/stat.h>
 #endif // _WIN32
 #include "boinc_api.h"
+#include "diagnostics.h" 
 // for boinc_sleep()
 #include "util.h"
 // for parse_command_line()
@@ -74,22 +75,6 @@ extern "C" {
 }
 
 
-void send_status_message(TASK& task, double frac_done) {
-  boinc_report_app_status(1.0, 0.0, frac_done);
-}
-
-
-double read_fraction_done(void) {
-  double fraction = 0.0;
-  FILE *f = fopen(FILE_FRACTION_DONE, "r");
-  if (!f) {
-    return 0.0;
-  }
-  fscanf(f,"%lf", &fraction);
-  fclose(f);
-  return fraction;
-}
-
 void poll_boinc_messages(TASK& task) {
   BOINC_STATUS status;
   boinc_get_status(&status);
@@ -118,10 +103,14 @@ void poll_boinc_messages(TASK& task) {
 
 
 int main(int argc, char* argv[]) {
-  double frac_done = 0.0; 
   BOINC_OPTIONS options;
 
-  fprintf(stdout, "Launcher for GenWrapper (build date %s, %s)\n", __DATE__, LAUNCHER_SVN_REV);
+  gw_init();
+
+#ifdef WANT_DCAPI
+  boinc_init_diagnostics(BOINC_DIAG_REDIRECTSTDERR | BOINC_DIAG_REDIRECTSTDOUT);
+#endif
+  gw_do_log(LOG_INFO, "Launcher for GenWrapper (build date %s, %s)", __DATE__, LAUNCHER_SVN_REV);
 
   memset(&options, 0, sizeof(options));
   options.main_program = true;
@@ -131,7 +120,7 @@ int main(int argc, char* argv[]) {
   boinc_init_options(&options);
 
 #ifdef WANT_DCAPI
-  fprintf(stdout, "DC-API enabled version\n");
+  gw_do_log(LOG_INFO, "DC-API enabled version");
   // need to create various files expected by DC-API
   // in case the application fails, DC-API still expects them
   std::string dc_filename_resolved;
@@ -147,7 +136,7 @@ int main(int argc, char* argv[]) {
     }
   }
 #else
-  fprintf(stdout, "BOINC version\n");
+  gw_do_log(LOG_INFO, "BOINC enabled version");
 #endif
 
   if (argc < 2)
@@ -228,10 +217,6 @@ int main(int argc, char* argv[]) {
       }
       break;
     }
-    double frac_done_t = read_fraction_done();
-    if (frac_done_t > frac_done)
-      frac_done = frac_done_t;
-    send_status_message(gw_task, frac_done);
     poll_boinc_messages(gw_task);
     boinc_sleep(POLL_PERIOD);
   }

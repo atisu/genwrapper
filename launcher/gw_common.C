@@ -25,16 +25,20 @@
 #include <fstream>
 #include "boinc_api.h"
 #include "gw_common.h"
+#include "common.h"
 
 
-static const char *levels[] = {
-  "Debug",
-  "Info",
-  "Notice",
-  "Warning",
-  "Error",
-  "Critical"
-};
+static char *levels[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+
+
+void gw_init() {
+  levels[LOG_DEBUG]   = "Debug";
+  levels[LOG_INFO]    = "Info";
+  levels[LOG_NOTICE]  = "Notice";
+  levels[LOG_WARNING] = "Warning";
+  levels[LOG_ERR]     = "Error";
+  levels[LOG_CRIT]    = "Critical";
+}
 
 
 void gw_do_log(int level, const char *fmt, ...) {
@@ -108,6 +112,7 @@ bool gw_copy_file(const char* src, const char* dst) {
 
 
 void gw_finish(int status, double total_cpu_time) {
+  gw_report_status(total_cpu_time, 100.0, true);
 #ifdef WANT_DCAPI
   // copy stderr/ stdout to DC-API equvialents
   std::string resolved_filename;
@@ -116,42 +121,62 @@ void gw_finish(int status, double total_cpu_time) {
   resolved_filename = gw_resolve_filename(DC_LABEL_STDERR);
   gw_copy_file(STDERR_FILE, resolved_filename.c_str());
 #endif // WANT_DCAPI
-  gw_report_cpu_time(total_cpu_time);
   boinc_finish(status);
 }
 
 
-void gw_report_cpu_time(double total_cpu_time, bool final) {
+void gw_report_fraction_done(double fraction_done) {
+  char msg_buf[MSG_CHANNEL_SIZE];
+  if (app_client_shm == NULL) {
+    gw_do_log(LOG_ERR, "Cannot report fraction done, shared memory is not available");
+    return;
+  }
+  sprintf(msg_buf,
+	  "<fraction_done>%2.8f</fraction_done>\n",
+	  fraction_done);
+  app_client_shm->shm->app_status.send_msg(msg_buf);
+}
+
+
+void gw_report_status(double total_cpu_time, double fraction_done, bool final) {
   double report_cpu_time = total_cpu_time;
   char msg_buf[MSG_CHANNEL_SIZE];
 
-  if (app_client_shm == NULL)
-    return;
-  if (report_cpu_time <= 1)
-    report_cpu_time = 1;
   // do not try to report time when running standalone
+  if (app_client_shm == NULL) {
+    gw_do_log(LOG_ERR, "Cannot report cpu time, shared memory is not available");
+    return;
+  }
   // hack to report cpu time -->
   // if result is killed and restarted, only the cpu time
   // of the last run will be reported
+  sprintf(msg_buf,
+	  "<current_cpu_time>%10.4f</current_cpu_time>\n"
+	  "<checkpoint_cpu_time>%.15e</checkpoint_cpu_time>\n"
+	  "<fraction_done>%2.8f</fraction_done>\n",
+	  report_cpu_time,
+	  0.0,
+	  fraction_done);
+  app_client_shm->shm->app_status.send_msg(msg_buf);
   if (final) {
-    for (int i=0; i<3; i++) {
-      boinc_report_app_status(report_cpu_time, 0, 100);    
+    gw_do_log(LOG_INFO, "Reporting final cpu time: %10.4f seconds", report_cpu_time);
+    for (int i=0; i<10; i++) {
+      app_client_shm->shm->app_status.send_msg(msg_buf);
       sleep(1);
     }
-    sprintf(msg_buf,
-	    "<current_cpu_time>%10.4f</current_cpu_time>\n"
-	    "<checkpoint_cpu_time>%.15e</checkpoint_cpu_time>\n"
-	    "<fraction_done>%2.8f</fraction_done>\n",
-	    report_cpu_time,
-	    0.0,
-	    100.0);
-  } else {
-    sprintf(msg_buf,
-	    "<current_cpu_time>%10.4f</current_cpu_time>\n"
-	    "<checkpoint_cpu_time>%.15e</checkpoint_cpu_time>\n",
-	    report_cpu_time,
-	    0.0);
   }
-  app_client_shm->shm->app_status.send_msg(msg_buf);
   // <--  
 }
+
+
+double gw_read_fraction_done(void) {
+  double fraction = 0.0;
+  FILE *f = fopen(FILE_FRACTION_DONE, "r");
+  if (!f) {
+    return 0.0;
+  }
+  fscanf(f, "%lf", &fraction);
+  fclose(f);
+  return fraction;
+}
+

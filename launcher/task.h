@@ -31,6 +31,7 @@ struct TASK {
   double final_cpu_time;
   // how much CPU time was used by tasks before this in the job file
   double starting_cpu;
+  double frac_done; 
   bool suspended;
 #ifdef _WIN32
   HANDLE hProcess;
@@ -40,6 +41,7 @@ struct TASK {
   // process id, also process group id of child 
   int pid;
 #endif
+  TASK();
   bool poll(int& status);
   int run(vector<string> &args);
   void kill();
