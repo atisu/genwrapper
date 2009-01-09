@@ -28,7 +28,7 @@
 #include "common.h"
 
 
-static char *levels[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+static char *levels[8];
 
 
 void gw_init() {
