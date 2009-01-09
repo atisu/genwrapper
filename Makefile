@@ -343,7 +343,7 @@ GIT_VERSION = 1.5.3.GIT
 
 BOX_CFLAGS = -Ibox/include -Ibox/libbb \
 	-I. -DBB_VER=BUSYBOX_VERSION \
-	-DBB_BT="\"GitBox v$(GIT_VERSION), \" AUTOCONF_TIMESTAMP"
+	-DBB_BT="\"GitBox v$(GIT_VERSION), \" AUTOCONF_TIMESTAMP $Revision$"
 
 BOX_H := $(patsubst %.h,box/include/%.h,$(BOX_H))
 BOX_OBJS := $(patsubst %.o,box/%.o,$(BOX_OBJS))
