@@ -139,6 +139,7 @@ void gw_report_fraction_done(double fraction_done) {
 
 
 void gw_report_status(double total_cpu_time, double fraction_done, bool final) {
+
   double report_cpu_time = total_cpu_time;
   char msg_buf[MSG_CHANNEL_SIZE];
 
@@ -160,12 +161,13 @@ void gw_report_status(double total_cpu_time, double fraction_done, bool final) {
   app_client_shm->shm->app_status.send_msg(msg_buf);
   if (final) {
     gw_do_log(LOG_INFO, "Reporting final cpu time: %10.4f seconds", report_cpu_time);
-    for (int i=0; i<10; i++) {
+    for (int i=0; i<5; i++) {
       app_client_shm->shm->app_status.send_msg(msg_buf);
-      sleep(1);
+      sleep(POLL_PERIOD);
     }
   }
-  // <--  
+  // <--
+
 }
 
 

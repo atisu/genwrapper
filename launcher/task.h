@@ -29,8 +29,7 @@ using std::string;
 
 struct TASK {
   double final_cpu_time;
-  // how much CPU time was used by tasks before this in the job file
-  double starting_cpu;
+  double wall_cpu_time;
   double frac_done; 
   bool suspended;
 #ifdef _WIN32

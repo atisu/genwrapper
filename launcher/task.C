@@ -243,6 +243,8 @@ void listProcessesInJob(HANDLE hJobObject) {
 
 TASK::TASK() {
   frac_done = 0.0;
+  final_cpu_time = 0;
+  wall_cpu_time = 0;
 }
 
 
@@ -328,12 +330,11 @@ int TASK::run(vector<string> &args) {
   return 0;
 }
 
-bool TASK::poll(int& status) {
 
+bool TASK::poll(int& status) {
   double frac_done_t = gw_read_fraction_done();
   if (frac_done_t > frac_done)
     frac_done = frac_done_t;
-
 #ifdef _WIN32
   unsigned long exit_code;
   JOBOBJECT_BASIC_ACCOUNTING_INFORMATION Rusage;
@@ -357,7 +358,6 @@ bool TASK::poll(int& status) {
 #else
   int wpid, wait_status;
   struct rusage ru;
-
   wpid = wait4(-pid, &wait_status, WNOHANG, &ru);
   if (wpid) {
     if (WIFSIGNALED(wait_status))
@@ -365,11 +365,13 @@ bool TASK::poll(int& status) {
     else
       status = WEXITSTATUS(wait_status);
     final_cpu_time = (float)ru.ru_utime.tv_sec + ((float)ru.ru_utime.tv_usec)/1e+6;
-    gw_report_status(final_cpu_time, frac_done, false);
+    gw_report_status(final_cpu_time, frac_done, false);       
     return true;
   }
+  if (!suspended)
+    wall_cpu_time += POLL_PERIOD;
+  gw_report_status(wall_cpu_time, frac_done, false);       
 #endif
-  gw_report_fraction_done(frac_done);
   return false;
 }
 
