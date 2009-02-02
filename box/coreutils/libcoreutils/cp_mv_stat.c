@@ -25,19 +25,34 @@
 
 int cp_mv_stat2(const char *fn, struct stat *fn_stat, stat_func sf)
 {
-	if (sf(fn, fn_stat) < 0) {
+
+	char* fn_stripped;
+	int fn_last;
+
+	// atisu: On windows moving to a destination name ending with '/' will make 
+	//        it fail ('permission denied'). Strip all ending '/' -s, but do not
+	//        touch the last one if the root dir ('/') is the target.
+	fn_stripped = strdup(fn);
+	fn_last = strlen(fn_stripped);
+	while (fn_stripped[--fn_last] == '/' && fn_last)
+	        fn_stripped[fn_last] = '\0';
+	if (sf(fn_stripped, fn_stat) < 0) {
 		if (errno != ENOENT) {
 #if ENABLE_FEATURE_VERBOSE_CP_MESSAGE
 			if (errno == ENOTDIR) {
-				bb_error_msg("cannot stat '%s': Path has non-directory component", fn);
+				bb_error_msg("cannot stat '%s': Path has non-directory component", fn_stripped);
+				free(fn_stripped);
 				return -1;
 			}
 #endif
-			bb_perror_msg("cannot stat '%s'", fn);
+			bb_perror_msg("cannot stat '%s'", fn_stripped);
+			free(fn_stripped);
 			return -1;
 		}
+		free(fn_stripped);
 		return 0;
 	}
+	free(fn_stripped);
 	if (S_ISDIR(fn_stat->st_mode)) {
 		return 3;
 	}
