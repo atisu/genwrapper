@@ -347,7 +347,7 @@ bool TASK::poll(int& status) {
       gw_do_log(LOG_ERR, "failed to query information on JobObject (%ld)", 
 		(long)GetLastError());
     } else {
-      final_cpu_time = ((long)Rusage.TotalUserTime.QuadPart) / 10000000;
+      final_cpu_time = (double)(((long long)Rusage.TotalUserTime.QuadPart) / 10000000);
     }
     gw_report_status(final_cpu_time, frac_done, false);
     if (exit_code != STILL_ACTIVE) {

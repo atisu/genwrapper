@@ -52,6 +52,6 @@ std::string gw_resolve_filename(const char *filename);
 bool gw_copy_file(const char* src, const char* dst);
 void gw_finish(int status, double total_cpu_time = 0);
 void gw_report_fraction_done(double fraction_done);
-void gw_report_status(double total_cpu_time, double fraction_done, bool final = true);
+void gw_report_status(double cpu_time, double fraction_done, bool final = true);
 double gw_read_fraction_done(void);
 #endif // GW_COMMON_H

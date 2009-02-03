@@ -16,6 +16,7 @@
 // or write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
+
 #include <errno.h>
 #include "usage.h"
 #include "libbb.h"
@@ -32,13 +33,12 @@ static int resolve_filename(const char* filename) {
 }
 
 
-static int fraction_done(double fraction) {
-  return boinc_fraction_done(fraction);
-}
-
-
 static int fraction_done_percent(int fraction) {
   double d_fraction = fraction / 100.00;
+  if (d_fraction < 0.0)
+    d_fraction = 0.0;
+  if (d_fraction > 1.0)
+    d_fraction = 1.0;
   FILE *f = fopen(FILE_FRACTION_DONE, "w+");
   if (!f)
     return false;
@@ -48,14 +48,8 @@ static int fraction_done_percent(int fraction) {
 }
 
 
-// not used.
-int finish(int status) {
-  return boinc_finish(status);
-}
-
-
-int init() {
-  return 0;
+static int fraction_done(double fraction) {
+  return fraction_done_percent(fraction * 100.00);
 }
 
 
@@ -115,8 +109,6 @@ int boinc_main(int argc, char **argv)
 	  return retval;            
         }
 	exit(status);
-  } else if (strcmp(argv[1], "init")==0) {
-    // nothing here
   } else {
     fprintf(stderr, "ERROR: invalid command '%s'\n", argv[1]);
   }

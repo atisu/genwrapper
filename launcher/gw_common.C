@@ -138,14 +138,15 @@ void gw_report_fraction_done(double fraction_done) {
 }
 
 
-void gw_report_status(double total_cpu_time, double fraction_done, bool final) {
+void gw_report_status(double cpu_time, double fraction_done, bool final) {
 
-  double report_cpu_time = total_cpu_time;
   char msg_buf[MSG_CHANNEL_SIZE];
 
   // do not try to report time when running standalone
   if (app_client_shm == NULL) {
-    gw_do_log(LOG_ERR, "Cannot report cpu time, shared memory is not available");
+    gw_do_log(LOG_ERR, 
+	      "Cannot report cpu time (%10.4f sec), shared memory is not available",
+	      cpu_time);
     return;
   }
   // hack to report cpu time -->
@@ -155,12 +156,12 @@ void gw_report_status(double total_cpu_time, double fraction_done, bool final) {
 	  "<current_cpu_time>%10.4f</current_cpu_time>\n"
 	  "<checkpoint_cpu_time>%.15e</checkpoint_cpu_time>\n"
 	  "<fraction_done>%2.8f</fraction_done>\n",
-	  report_cpu_time,
+	  cpu_time,
 	  0.0,
 	  fraction_done);
   app_client_shm->shm->app_status.send_msg(msg_buf);
   if (final) {
-    gw_do_log(LOG_INFO, "Reporting final cpu time: %10.4f seconds", report_cpu_time);
+    gw_do_log(LOG_INFO, "Reporting final cpu time: %10.4f seconds", cpu_time);
     for (int i=0; i<5; i++) {
       app_client_shm->shm->app_status.send_msg(msg_buf);
       sleep(POLL_PERIOD);
