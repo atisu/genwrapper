@@ -50,6 +50,9 @@ int date_main(int argc, char **argv)
 	char *filename = NULL;
 	char *isofmt_arg;
 	char *hintfmt_arg;
+#ifdef _WIN32
+	char date_fmt_buf[32];
+#endif
 
 	opt_complementary = "d--s:s--d"
 		USE_FEATURE_DATE_ISOFMT(":R--I:I--R");
@@ -102,11 +105,18 @@ int date_main(int argc, char **argv)
 
 		/* Process any date input to UNIX time since 1 Jan 1970 */
 		if (ENABLE_FEATURE_DATE_ISOFMT && (opt & DATE_OPT_HINT)) {
-			strptime(date_str, hintfmt_arg, &tm_time);
+#ifdef _WIN32
+		        if (sscanf(date_str, "%ld", &tm) == 1) {
+		              localtime_r(&tm, &tm_time);
+		        } else 
+#endif
+			      strptime(date_str, hintfmt_arg, &tm_time);
 		} else if (strchr(date_str, ':') != NULL) {
 			/* Parse input and assign appropriately to tm_time */
 
-			if (sscanf(date_str, "%d:%d:%d", &tm_time.tm_hour, &tm_time.tm_min,
+		        if (sscanf(date_str, "%ld", &tm) == 1) {
+		              localtime_r(&tm, &tm_time);
+		        } else if (sscanf(date_str, "%d:%d:%d", &tm_time.tm_hour, &tm_time.tm_min,
 								 &tm_time.tm_sec) == 3) {
 				/* no adjustments needed */
 			} else if (sscanf(date_str, "%d:%d", &tm_time.tm_hour,
@@ -227,7 +237,15 @@ int date_main(int argc, char **argv)
 		if (strncmp(date_fmt, "%f", 2) == 0) {
 			date_fmt = (char*)"%Y.%m.%d-%H:%M:%S";
 		}
-
+#ifdef _WIN32
+		if (strncmp(date_fmt, "%s", 2) == 0) {
+		        snprintf(date_fmt_buf, 32, "%ld", time(NULL));
+		        date_fmt = date_fmt_buf;
+		}
+		if (strncmp(date_fmt, "%T", 2) == 0) {
+		        date_fmt = (char*)"%H:%M:%S";
+		}
+#endif
 		/* Generate output string */
 		strftime(date_buf, sizeof(date_buf), date_fmt, &tm_time);
 	}
