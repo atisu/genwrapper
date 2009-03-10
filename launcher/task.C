@@ -297,7 +297,7 @@ int TASK::run(vector<string> &args) {
   if (!AssignProcessToJobObject(hJobObject, hProcess)) {
     gw_do_log(LOG_ERR, "failed to add current process to the JobObject");
   }
-  gw_do_log(LOG_DEBUG, "CreateProcess returns %d", process_info.dwProcessId);
+  gw_do_log(LOG_DEBUG, "CreateProcess returns %d as process id", process_info.dwProcessId);
   suspended = false;
 #else
   pid = fork();
