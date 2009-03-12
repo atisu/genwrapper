@@ -109,8 +109,9 @@ all:
 HOST := $(shell ./config.guess)
 TARGET := $(shell ./config.guess)
 
+SVN_REV=$(shell if [ `which svnversion`x != x ]; then svnversion; else echo local-build; fi)
 # CFLAGS and LDFLAGS are for the users to override from the command line.
-CFLAGS = -g -O2 -Wall
+CFLAGS = -g -O2 -Wall -DSVNREV=\"Revision:$(SVN_REV)\"
 LDFLAGS =
 ALL_CFLAGS = $(CFLAGS)
 ALL_LDFLAGS = $(LDFLAGS)

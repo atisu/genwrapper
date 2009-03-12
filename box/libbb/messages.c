@@ -17,7 +17,7 @@
 #define BB_EXTRA_VERSION BB_BT
 #endif
 
-#define BANNER "BusyBox v" BB_VER " (" BB_EXTRA_VERSION ") $Revision$"
+#define BANNER "BusyBox v" BB_VER " (" BB_EXTRA_VERSION ", " SVNREV ") "
 
 const char bb_banner[] ALIGN1 = BANNER;
 

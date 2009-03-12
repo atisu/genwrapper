@@ -50,7 +50,6 @@
 #endif // _WIN32
 #define PROFILE_SCRIPT   "profile.sh"
 #define EXEC_SCRIPT      "gw_tmp.sh"
-#define LAUNCHER_SVN_REV "$Revision$"
 #ifndef _MAX_PATH
 #define _MAX_PATH        255
 #endif
@@ -109,7 +108,7 @@ int main(int argc, char* argv[]) {
 #ifdef WANT_DCAPI
   boinc_init_diagnostics(BOINC_DIAG_REDIRECTSTDERR | BOINC_DIAG_REDIRECTSTDOUT);
 #endif
-  gw_do_log(LOG_INFO, "Launcher for GenWrapper (build date %s, %s)", __DATE__, LAUNCHER_SVN_REV);
+  gw_do_log(LOG_INFO, "Launcher for GenWrapper (build date %s, %s)", __DATE__, SVNREV);
 
   memset(&options, 0, sizeof(options));
   options.main_program = true;
