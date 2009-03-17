@@ -299,7 +299,6 @@ int TASK::run(vector<string> &args) {
   SetThreadPriority(hThread, THREAD_PRIORITY_IDLE);
   if (!AssignProcessToJobObject(hJobObject, hProcess)) {
     gw_do_log(LOG_ERR, "failed to add current process to the JobObject (Error code: %ld)", (long)GetLastError());
-    //listProcessesInJob(hJobObject);
   }
   gw_do_log(LOG_DEBUG, "CreateProcess returns %ld as process id", process_info.dwProcessId);
   suspended = false;
