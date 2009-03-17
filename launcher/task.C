@@ -261,6 +261,9 @@ int TASK::run(vector<string> &args) {
   SecAttrs.lpSecurityDescriptor = NULL;
   // create a JobObject without a name to avoid collosions
   hJobObject=CreateJobObject(&SecAttrs, NULL);
+  if (hJobObject == NULL) {
+    gw_do_log(LOG_ERR, "Failed to create job object (Error code: %ld)", (long)GetLastError());
+  }
 
   ZeroMemory(&startup_info, sizeof(startup_info));
   ZeroMemory(&process_info, sizeof(process_info));
@@ -295,9 +298,10 @@ int TASK::run(vector<string> &args) {
   hThread = process_info.hThread;
   SetThreadPriority(hThread, THREAD_PRIORITY_IDLE);
   if (!AssignProcessToJobObject(hJobObject, hProcess)) {
-    gw_do_log(LOG_ERR, "failed to add current process to the JobObject");
+    gw_do_log(LOG_ERR, "failed to add current process to the JobObject (Error code: %ld)", (long)GetLastError());
+    //listProcessesInJob(hJobObject);
   }
-  gw_do_log(LOG_DEBUG, "CreateProcess returns %d as process id", process_info.dwProcessId);
+  gw_do_log(LOG_DEBUG, "CreateProcess returns %ld as process id", process_info.dwProcessId);
   suspended = false;
 #else
   pid = fork();

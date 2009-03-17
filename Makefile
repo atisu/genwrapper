@@ -135,7 +135,7 @@ DCAPI=yes
 
 ifeq ($(findstring mingw,$(TARGET)),mingw)
 BOINC_CFLAGS=-IC:/Projects/boinc_mingw/include -IC:/Projects/openssl/include
-BOINC_LIBS=-LC:/Projects/boinc_mingw/ -lboinc -LC:/Projects/openssl/lib -lcrypto -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm
+BOINC_LIBS=-LC:/Projects/boinc_mingw/ -lboinc -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm
 #LAUNCHER_CFLAGS=
 #LAUNCHER_LDFLAGS=
 #only when comiling with mingw and BOINC is set to "yes"
