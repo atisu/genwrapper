@@ -22,7 +22,7 @@
 #include <stdarg.h>
 #include <string>
 
-#define POLL_PERIOD      1
+#define POLL_PERIOD      0.1
 // DC-API expects some files
 #ifdef WANT_DCAPI
 #define DC_LABEL_STDOUT "dc_stdout.txt"
