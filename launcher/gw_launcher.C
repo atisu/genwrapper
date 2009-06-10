@@ -193,7 +193,6 @@ int main(int argc, char* argv[]) {
     gw_do_log(LOG_ERR, "Failed to create the initialization script");
     gw_finish(255);
   }
-  // create task
   TASK gw_task;
   vector<string> args;
   args.push_back(genwrapper_exe_resolved.c_str());

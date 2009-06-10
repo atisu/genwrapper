@@ -32,12 +32,13 @@ static char *levels[8];
 
 
 void gw_init() {
-  levels[LOG_DEBUG]   = "Debug";
-  levels[LOG_INFO]    = "Info";
-  levels[LOG_NOTICE]  = "Notice";
-  levels[LOG_WARNING] = "Warning";
-  levels[LOG_ERR]     = "Error";
-  levels[LOG_CRIT]    = "Critical";
+  // stupid windows...
+  levels[LOG_DEBUG]   = (char*) "Debug";
+  levels[LOG_INFO]    = (char*) "Info";
+  levels[LOG_NOTICE]  = (char*) "Notice";
+  levels[LOG_WARNING] = (char*) "Warning";
+  levels[LOG_ERR]     = (char*) "Error";
+  levels[LOG_CRIT]    = (char*) "Critical";
 }
 
 
@@ -55,7 +56,6 @@ void gw_do_vlog(int level, const char *fmt, va_list ap) {
   char timebuf[32];
   struct tm *tm;
   time_t now;
-
   if (level >= 0 && level < (int)(sizeof(levels) / sizeof(levels[0])) && levels[level])
     levstr = levels[level];
   else
@@ -144,7 +144,7 @@ void gw_report_status(double cpu_time, double fraction_done, bool final) {
 
   // do not try to report time when running standalone
   if (app_client_shm == NULL) {
-    gw_do_log(LOG_ERR, 
+    gw_do_log(LOG_WARNING, 
 	      "Cannot report cpu time (%10.4f sec), shared memory is not available",
 	      cpu_time);
     return;
@@ -174,11 +174,12 @@ void gw_report_status(double cpu_time, double fraction_done, bool final) {
 
 double gw_read_fraction_done(void) {
   double fraction = 0.0;
+  int result;
   FILE *f = fopen(FILE_FRACTION_DONE, "r");
   if (!f) {
     return 0.0;
   }
-  fscanf(f, "%lf", &fraction);
+  result = fscanf(f, "%lf", &fraction);
   fclose(f);
   return fraction;
 }

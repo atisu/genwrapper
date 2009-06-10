@@ -163,14 +163,10 @@ void controlProcessesInJob(HANDLE hJobObject_, BOOL bSuspend) {
   }
 } 
 
-void suspendProcessesInJob(HANDLE hJobObject_) {
-  controlProcessesInJob(hJobObject_, TRUE);
-}
+void suspendProcessesInJob(HANDLE hJobObject_) { controlProcessesInJob(hJobObject_, TRUE); }
 
 
-void resumeProcessesInJob(HANDLE hJobObject_) {
-  controlProcessesInJob(hJobObject_, FALSE);
-}
+void resumeProcessesInJob(HANDLE hJobObject_) { controlProcessesInJob(hJobObject_, FALSE); }
 
 
 bool addProcessesToJobObject(HANDLE hJobObject_) {
@@ -243,8 +239,9 @@ void listProcessesInJob(HANDLE hJobObject) {
 
 TASK::TASK() {
   frac_done = 0.0;
-  final_cpu_time = 0;
-  wall_cpu_time = 0;
+  final_cpu_time = 0.0;
+  wall_cpu_time = 0.0;
+  pid = 0;
 }
 
 
@@ -319,6 +316,7 @@ int TASK::run(vector<string> &args) {
 		getpgid(0), getpid());
       exit(ERR_EXEC);
     }
+    gw_do_log(LOG_INFO, "i am the first child and my process group is %d", getpgid(getpid()));
     const char **argv = (const char **)malloc(sizeof(*argv) * (args.size() + 1));
     size_t i;
     for (i = 0; i < args.size(); i++)
@@ -362,14 +360,22 @@ bool TASK::poll(int& status) {
   int wpid, wait_status;
   struct rusage ru;
   wpid = wait4(-pid, &wait_status, WNOHANG, &ru);
-  if (wpid) {
-    if (WIFSIGNALED(wait_status))
+  if (wpid > 0) {
+    if (WIFSIGNALED(wait_status)) {
       status = 255;
-    else
+      gw_do_log(LOG_INFO, "proccess killed by signal %d", WTERMSIG(wait_status));
+    } else if (WIFEXITED(wait_status)) {
       status = WEXITSTATUS(wait_status);
-    final_cpu_time = (float)ru.ru_utime.tv_sec + ((float)ru.ru_utime.tv_usec)/1e+6;
+      gw_do_log(LOG_INFO, "process exited with status: %d", status);
+    } else {
+      status = 255;
+      gw_do_log(LOG_WARNING, "unhandled wait4() status");      
+    }
+    final_cpu_time = (double)ru.ru_utime.tv_sec + ((double)ru.ru_utime.tv_usec)/1e+6;
     gw_report_status(final_cpu_time, frac_done, false);       
     return true;
+  } else if (wpid < 0) {
+    gw_do_log(LOG_WARNING, "wait4() returned with %d", wpid);
   }
   if (!suspended)
     wall_cpu_time += POLL_PERIOD;
