@@ -24,6 +24,7 @@
 #endif // _WIN32
 #include <fstream>
 #include "boinc_api.h"
+#include "util.h"
 #include "gw_common.h"
 #include "common.h"
 
@@ -164,7 +165,7 @@ void gw_report_status(double cpu_time, double fraction_done, bool final) {
     gw_do_log(LOG_INFO, "Reporting final cpu time: %10.4f seconds", cpu_time);
     for (int i=0; i<5; i++) {
       app_client_shm->shm->app_status.send_msg(msg_buf);
-      sleep(POLL_PERIOD);
+      boinc_sleep(POLL_PERIOD);
     }
   }
   // <--

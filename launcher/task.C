@@ -163,11 +163,6 @@ void controlProcessesInJob(HANDLE hJobObject_, BOOL bSuspend) {
   }
 } 
 
-void suspendProcessesInJob(HANDLE hJobObject_) { controlProcessesInJob(hJobObject_, TRUE); }
-
-
-void resumeProcessesInJob(HANDLE hJobObject_) { controlProcessesInJob(hJobObject_, FALSE); }
-
 
 bool addProcessesToJobObject(HANDLE hJobObject_) {
   PROCESSENTRY32 pe32;
@@ -357,15 +352,19 @@ bool TASK::poll(int& status) {
     }
   }  
 #else
-  int wpid, wait_status;
+  int wpid, wstatus, werrno;
   struct rusage ru;
-  wpid = wait4(-pid, &wait_status, WNOHANG, &ru);
+  
+retry_wpid:
+  
+  wpid = wait4(-pid, &wstatus, WNOHANG, &ru);
+  werrno = errno;
   if (wpid > 0) {
-    if (WIFSIGNALED(wait_status)) {
+    if (WIFSIGNALED(wstatus)) {
       status = 255;
-      gw_do_log(LOG_INFO, "proccess killed by signal %d", WTERMSIG(wait_status));
-    } else if (WIFEXITED(wait_status)) {
-      status = WEXITSTATUS(wait_status);
+      gw_do_log(LOG_INFO, "proccess killed by signal %d", WTERMSIG(wstatus));
+    } else if (WIFEXITED(wstatus)) {
+      status = WEXITSTATUS(wstatus);
       gw_do_log(LOG_INFO, "process exited with status: %d", status);
     } else {
       status = 255;
@@ -375,6 +374,8 @@ bool TASK::poll(int& status) {
     gw_report_status(final_cpu_time, frac_done, false);       
     return true;
   } else if (wpid < 0) {
+    if (werrno == EINTR)
+      goto retry_wpid;
     gw_do_log(LOG_WARNING, "wait4() returned with %d", wpid);
   }
   if (!suspended)
@@ -397,7 +398,7 @@ void TASK::kill() {
 
 void TASK::stop() {
 #ifdef _WIN32
-  ::suspendProcessesInJob(hJobObject);  
+  ::controlProcessesInJob(hJobObject, TRUE);
 #else
   ::killpg(pid, SIGSTOP);
 #endif
@@ -407,7 +408,7 @@ void TASK::stop() {
 
 void TASK::resume() {
 #ifdef _WIN32
-  ::resumeProcessesInJob(hJobObject);  
+  ::controlProcessesInJob(hJobObject, FALSE);
 #else
   ::killpg(pid, SIGCONT);
 #endif
