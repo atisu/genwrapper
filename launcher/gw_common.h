@@ -22,7 +22,6 @@
 #include <stdarg.h>
 #include <string>
 
-// cannot go below 1 sec
 #define POLL_PERIOD      0.1
 // DC-API expects some files
 #ifdef WANT_DCAPI
