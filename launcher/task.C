@@ -236,7 +236,6 @@ TASK::TASK() {
   frac_done = 0.0;
   final_cpu_time = 0.0;
   wall_cpu_time = 0.0;
-  pid = 0;
 }
 
 
