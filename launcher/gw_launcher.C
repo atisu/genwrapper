@@ -186,7 +186,7 @@ int main(int argc, char* argv[]) {
   std::ofstream exec_script(EXEC_SCRIPT, std::ios::out);
   exec_script << "set -e\n"
     // profile script is optional
-    << "if [ -r ./" PROFILE_SCRIPT " ]; then . ./" PROFILE_SCRIPT "; fi\n"
+    << "if [ -r ./" PROFILE_SCRIPT " ]; then . `boinc resolve_filename ./" PROFILE_SCRIPT "`; fi\n"
     << ". `boinc resolve_filename ./" << wu_script << "`\n";
   exec_script.close();
   if (exec_script.fail()) {
