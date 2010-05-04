@@ -169,7 +169,8 @@ int main(int argc, char* argv[]) {
   if (access(genwrapper_exe_resolved.c_str(), X_OK)) {
     gw_do_log(LOG_INFO, "Wrapper executable '%s' is not executable : %s. Trying to make it executable...",
       genwrapper_exe_resolved.c_str(), strerror(errno));
-    if (chmod(genwrapper_exe_resolved.c_str(), S_IXUSR | S_IXGRP | S_IXOTH) == -1) {
+    if (chmod(genwrapper_exe_resolved.c_str(), S_IXUSR | S_IXGRP | S_IXOTH |
+       S_IRUSR | S_IRGRP | S_IROTH) == -1) {
        gw_do_log(LOG_ERR, "Cannot set executable flag for Wrapper executable '%s': %s",
          genwrapper_exe_resolved.c_str(), strerror(errno));
        gw_finish(255);  
