@@ -167,9 +167,13 @@ int main(int argc, char* argv[]) {
 
   // Check for the interpreter
   if (access(genwrapper_exe_resolved.c_str(), X_OK)) {
-    gw_do_log(LOG_ERR, "Wrapper executable '%s' is not executable: %s",
-	      genwrapper_exe_resolved.c_str(), strerror(errno));
-    gw_finish(255);  
+    gw_do_log(LOG_INFO, "Wrapper executable '%s' is not executable : %s. Trying to make it executable...",
+      genwrapper_exe_resolved.c_str(), strerror(errno));
+    if (chmod(genwrapper_exe_resolved.c_str(), S_IXUSR | S_IXGRP | S_IXOTH) == -1) {
+       gw_do_log(LOG_ERR, "Cannot set executable flag for Wrapper executable '%s': %s",
+         genwrapper_exe_resolved.c_str(), strerror(errno));
+       gw_finish(255);  
+    }     
   }
   const char *wu_script = argv[1];
   if (wu_script == NULL) {
