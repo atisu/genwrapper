@@ -27,8 +27,8 @@
 #include <fstream>
 #ifdef WANT_BOINC
 #include "boinc_api.h"
-#endif
 #include "util.h"
+#endif
 #include "gw_common.h"
 #include "common.h"
 
