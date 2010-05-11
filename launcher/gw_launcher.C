@@ -23,7 +23,9 @@
 #include <fstream>
 #include <errno.h>
 #ifdef _WIN32
+#ifdef WANT_BOINC
 #include "boinc_win.h"
+#endif
 #else
 #include <syslog.h>
 #include <unistd.h>
@@ -31,17 +33,20 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #endif // _WIN32
+#ifdef WANT_BOINC
 #include "boinc_api.h"
 #include "diagnostics.h" 
-// for boinc_sleep()
 #include "util.h"
-// for parse_command_line()
 #include "str_util.h"
+#endif
+// for parse_command_line()
 #include "gw_common.h"
 // box/common.h
 #include "common.h"
 #include "task.h"
+#ifdef WANT_BOINC
 #include "error_numbers.h"
+#endif
 
 #ifdef _WIN32
 #define GENWRAPPER_EXE   "gitbox.exe"
@@ -72,7 +77,7 @@ extern "C" {
   int unzip_main(int argc, char **argv);
 }
 
-
+#ifdef WANT_BOINC
 void poll_boinc_messages(TASK& task) {
   BOINC_STATUS status;
   boinc_get_status(&status);
@@ -98,24 +103,27 @@ void poll_boinc_messages(TASK& task) {
     }
   }
 }
-
+#endif
 
 int main(int argc, char* argv[]) {
+#ifdef WANT_BOINC
   BOINC_OPTIONS options;
-
+#endif
   gw_init();
 
-#ifdef WANT_DCAPI
+#if defined(WANT_DCAPI) || defined(WANT_BOINC)
   boinc_init_diagnostics(BOINC_DIAG_REDIRECTSTDERR | BOINC_DIAG_REDIRECTSTDOUT);
 #endif
   gw_do_log(LOG_INFO, "Launcher for GenWrapper (build date %s, %s)", __DATE__, SVNREV);
 
+#ifdef WANT_BOINC
   memset(&options, 0, sizeof(options));
   options.main_program = true;
   options.check_heartbeat = true;
   options.handle_process_control = true;
   options.send_status_msgs = false;
   boinc_init_options(&options);
+#endif
 
 #ifdef WANT_DCAPI
   gw_do_log(LOG_INFO, "DC-API enabled version");
@@ -134,7 +142,10 @@ int main(int argc, char* argv[]) {
     }
   }
 #else
+  gw_do_log(LOG_INFO, "Standalone version");
+#ifdef WANT_BOINC
   gw_do_log(LOG_INFO, "BOINC enabled version");
+#endif
 #endif
 
   if (argc < 2)
@@ -189,10 +200,17 @@ int main(int argc, char* argv[]) {
 
   // create script file which execs profile and the wu supplied (argv[1]) script
   std::ofstream exec_script(EXEC_SCRIPT, std::ios::out);
+#ifdef WANT_BOINC
   exec_script << "set -e\n"
     // profile script is optional
     << "if [ -r ./" PROFILE_SCRIPT " ]; then . `boinc resolve_filename ./" PROFILE_SCRIPT "`; fi\n"
     << ". `boinc resolve_filename ./" << wu_script << "`\n";
+#else
+  exec_script << "set -e\n"
+    // profile script is optional
+    << "if [ -r ./" PROFILE_SCRIPT " ]; then . ./" PROFILE_SCRIPT "; fi\n"
+    << ". ./" << wu_script << "\n";
+#endif
   exec_script.close();
   if (exec_script.fail()) {
     gw_do_log(LOG_ERR, "Failed to create the initialization script");
@@ -205,7 +223,13 @@ int main(int argc, char* argv[]) {
   args.push_back(EXEC_SCRIPT);
   for (int i = 2; i < argc; i ++)
     args.push_back(string(argv[i]));
-  if (gw_task.run(args) == ERR_EXEC) {
+    int err_task;
+#ifdef WANT_BOINC
+    err_task = ERR_EXEC;
+#else
+    err_task = -148;
+#endif    
+  if (gw_task.run(args) == err_task) {
     gw_do_log(LOG_ERR, "Could not exec %s\n", genwrapper_exe_resolved.c_str());
     gw_finish(255);
   }
@@ -219,8 +243,11 @@ int main(int argc, char* argv[]) {
       }
       break;
     }
+#ifdef WANT_BOINC
     poll_boinc_messages(gw_task);
-    boinc_sleep(POLL_PERIOD);
+#else
+    gw_sleep(POLL_PERIOD);    
+#endif
   }
   gw_finish(0, gw_task.final_cpu_time);
 }

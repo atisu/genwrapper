@@ -29,19 +29,24 @@
 #endif
 #define _WIN32_WINNT 0x0500
 #define WIN32_LEAN_AND_MEAN
+#ifdef WANT_BOINC
 #include "boinc_win.h"
+#endif
 #include <process.h>
 #include <Tlhelp32.h>
 #else
 #include <unistd.h>
 #include <sys/wait.h>
 #include <syslog.h>
+#include <signal.h>
 #endif // _WIN32
 #include "common.h"
+#ifdef WANT_BOINC
 #include "str_util.h"
 #include "util.h"
 #include "app_ipc.h"
 #include "error_numbers.h"
+#endif
 #include "gw_common.h"
 #include "task.h"
 
@@ -283,7 +288,11 @@ int TASK::run(vector<string> &args) {
 		     &process_info
 		     )) {
     gw_do_log(LOG_ERR, "CreateProcess failed (%ld)", (long)GetLastError()); 
-    return ERR_EXEC;
+#ifdef WANT_BOINC
+    exit(ERR_EXEC);
+#else
+    gw_finish(-148);
+#endif
   }
   hProcess = process_info.hProcess;
   hThread = process_info.hThread;
@@ -297,7 +306,11 @@ int TASK::run(vector<string> &args) {
   pid = fork();
   if (pid == -1) {
     gw_do_log(LOG_ERR, "fork() failed: %s", strerror(errno));
+#ifdef WANT_BOINC
     gw_finish(ERR_FORK);
+#else
+    gw_finish(-147);
+#endif
   }
   if (pid == 0) {
     // we're in the child process here
@@ -308,7 +321,11 @@ int TASK::run(vector<string> &args) {
     if (setpgid(getpid(), getpid()) == -1) {
       gw_do_log(LOG_ERR, "process id and the new process group id does not match !! (%d/%d)", 
 		getpgid(0), getpid());
+#ifdef WANT_BOINC
       exit(ERR_EXEC);
+#else
+      gw_finish(-148);
+#endif
     }
     gw_do_log(LOG_INFO, "i am the first child and my process group is %d", getpgid(getpid()));
     const char **argv = (const char **)malloc(sizeof(*argv) * (args.size() + 1));
@@ -319,7 +336,11 @@ int TASK::run(vector<string> &args) {
 
     execv(argv[0], (char *const *)argv);
     gw_do_log(LOG_ERR, "Could not execute '%s': %s", argv[0], strerror(errno));
-    exit(ERR_EXEC);
+#ifdef WANT_BOINC
+      exit(ERR_EXEC);
+#else
+      gw_finish(-148);
+#endif
   }
 #endif
   return 0;
@@ -390,16 +411,16 @@ void TASK::kill() {
   // should be -1 ?
   TerminateJobObject(hJobObject, 1);
 #else
-  ::killpg(pid, SIGKILL);
+  killpg(pid, SIGKILL);
 #endif
 }
 
 
 void TASK::stop() {
 #ifdef _WIN32
-  ::controlProcessesInJob(hJobObject, TRUE);
+  controlProcessesInJob(hJobObject, TRUE);
 #else
-  ::killpg(pid, SIGSTOP);
+  killpg(pid, SIGSTOP);
 #endif
   suspended = true;
 }
@@ -407,9 +428,9 @@ void TASK::stop() {
 
 void TASK::resume() {
 #ifdef _WIN32
-  ::controlProcessesInJob(hJobObject, FALSE);
+  controlProcessesInJob(hJobObject, FALSE);
 #else
-  ::killpg(pid, SIGCONT);
+  killpg(pid, SIGCONT);
 #endif
   suspended = false;
 }
