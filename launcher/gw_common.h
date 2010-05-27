@@ -42,6 +42,11 @@ enum {
 	LOG_CRIT
 };
 
+#define S_IXGRP 0
+#define S_IXOTH 0
+#define S_IRGRP 0
+#define S_IROTH 0
+
 #endif
 
 void gw_init();

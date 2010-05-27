@@ -219,22 +219,11 @@ void gw_sleep(double seconds) {
 #endif
 }
 
+#ifndef _WIN32
 double dtime() {
-#ifdef _WIN32
-    LARGE_INTEGER time;
-    FILETIME sysTime;
-    double t;
-    GetSystemTimeAsFileTime(&sysTime);
-    time.LowPart = sysTime.dwLowDateTime;
-    time.HighPart = sysTime.dwHighDateTime;  // Time is in 100 ns units
-    t = (double)time.QuadPart;    // Convert to 1 s units
-    t /= TEN_MILLION;                /* In seconds */
-    t -= EPOCHFILETIME_SEC;     /* Offset to the Epoch time */
-    return t;
-#else
     struct timeval tv;
     gettimeofday(&tv, 0);
     return tv.tv_sec + (tv.tv_usec/1.e6);
-#endif
 }
+#endif
 
