@@ -17,7 +17,7 @@
 enum _vflag bb_dump_vflag = FIRST;
 FS *bb_dump_fshead;				/* head of format strings */
 static FU *endfu;
-static char **_argv;
+static char **argv_; /* atisu[20100531]: '_argv' is defined in stdlib.h of mingw */
 static off_t savaddress;	/* saved address/offset in stream */
 static off_t eaddress;	/* end address */
 static off_t address;	/* address/offset in stream */
@@ -324,15 +324,15 @@ static int next(char **argv)
 	int statok;
 
 	if (argv) {
-		_argv = argv;
+		argv_ = argv;
 		return 1;
 	}
 	for (;;) {
-		if (*_argv) {
-			if (!(freopen(*_argv, "r", stdin))) {
-				bb_simple_perror_msg(*_argv);
+		if (*argv_) {
+			if (!(freopen(*argv_, "r", stdin))) {
+				bb_simple_perror_msg(*argv_);
 				exitval = 1;
-				++_argv;
+				++argv_;
 				continue;
 			}
 			done = statok = 1;
@@ -343,9 +343,9 @@ static int next(char **argv)
 			statok = 0;
 		}
 		if (bb_dump_skip)
-			do_skip(statok ? *_argv : "stdin", statok);
-		if (*_argv)
-			++_argv;
+			do_skip(statok ? *argv_ : "stdin", statok);
+		if (*argv_)
+			++argv_;
 		if (!bb_dump_skip)
 			return 1;
 	}
@@ -395,7 +395,7 @@ static unsigned char *get(void)
 				  bb_dump_length == -1 ? need : MIN(bb_dump_length, need), stdin);
 		if (!n) {
 			if (ferror(stdin)) {
-				bb_simple_perror_msg(_argv[-1]);
+				bb_simple_perror_msg(argv_[-1]);
 			}
 			ateof = 1;
 			continue;

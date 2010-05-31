@@ -21,12 +21,12 @@ Boston, MA 02111-1307, USA.  */
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-#include <ansidecl.h>
-#ifdef ANSI_PROTOTYPES
+#include "ansidecl.h"
+//#ifdef ANSI_PROTOTYPES
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
+//#else
+//#include <varargs.h>
+//#endif
 #include <stdio.h>
 #ifdef HAVE_STRING_H
 #include <string.h>

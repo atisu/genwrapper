@@ -133,15 +133,19 @@ RM = rm -f
 BOINC=yes
 DCAPI=yes
 
+ifndef BOINCDIR
 ifeq ($(findstring mingw,$(TARGET)),mingw)
-BOINC_CFLAGS=-IC:/Projects/boinc_mingw/include -IC:/Projects/openssl/include
-BOINC_LIBS=-LC:/Projects/boinc_mingw/ -lboinc -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm
-#LAUNCHER_CFLAGS=
-#LAUNCHER_LDFLAGS=
-#only when comiling with mingw and BOINC is set to "yes"
-#OPENSSL_DIR=C:/Projects/openssl/lib/
+       BOINCDIR=../../boinc-mingw/
 else
-BOINC_CFLAGS=-I/usr/include/BOINC
+       BOINCDIR=/usr/include/BOINC
+endif
+endif
+
+ifeq ($(findstring mingw,$(TARGET)),mingw)
+BOINC_CFLAGS=-I$(BOINCDIR)/api -I$(BOINCDIR)/lib
+BOINC_LIBS=-L./tools/boinc-mingw32/ -lboinc -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm
+else
+BOINC_CFLAGS=-I$(BOINCDIR)
 BOINC_LIBS=-lboinc_api -lboinc -lcrypto -lstdc++ -lpthread -lm
 endif
 
@@ -156,7 +160,7 @@ LAUNCHER_LDFLAGS+=-Lbox/ -lbox
 EXTRA_PROGRAMS+=gw_launcher$X
 ifeq ($(findstring mingw,$(TARGET)),mingw)
 OPENSSLDIR=$(OPENSSL_DIR)
-ALL_LDFLAGS+=$(BOINC_LIBS) -lwinmm
+ALL_LDFLAGS+=$(BOINC_LIBS) -lwinmm -lth32
 ALL_CFLAGS+=$(BOINC_CFLAGS) -DBOINC 
 LAUNCHER_CFLAGS+=-DWIN32 -D_WIN32 -D_MT -DNDEBUG -D_WINDOWS -DCLIENT -DNODB -D_CONSOLE -fexceptions
 else
@@ -606,6 +610,7 @@ ifndef V
 	QUIET_LINK     = @echo ' ' LINK $@;
 	QUIET_BUILT_IN = @echo  BUILTIN $@;
 	QUIET_GEN      = @echo '  ' GEN $@;
+	QUIET_STRIP    = @echo    STRIP $@;
 	QUIET_SUBDIR0  = +@subdir=
 	QUIET_SUBDIR1  = ;$(NO_SUBDIR) echo '   ' SUBDIR $$subdir; \
 			 $(MAKE) $(PRINT_DIR) -C $$subdir
@@ -672,9 +677,11 @@ $(BOX_FILE): $(BOX_OBJS)
 
 gitbox$X: $(GIT_OBJS) $(BOX_FILE)
 	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $^ $(ALL_LDFLAGS) $(LIBS)
+	$(QUIET_STRIP)$(STRIP) gitbox$X
 
 gw_launcher$X: $(LAUNCHER_OBJS) $(COMPAT_OBJS) $(BOX_FILE)
 	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) $(LAUNCHER_CFLAGS) -o $@ $^ $(COMPAT_CFLAGS)  $(LAUNCHER_LDFLAGS) $(ALL_LDFLAGS) $(LIBS) 
+	$(QUIET_STRIP)$(STRIP) gw_launcher$X
 
 gw_launcher$X-clean:
 	$(RM) $(LAUNCHER_OBJS) gw_launcher$X

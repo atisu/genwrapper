@@ -31,7 +31,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include "boinc_win.h"
 #include <process.h>
-#include <Tlhelp32.h>
+#include <tlhelp32.h>
 #else
 #include <unistd.h>
 #include <sys/wait.h>
