@@ -377,7 +377,7 @@ int unzip_main(int argc, char **argv)
 			} else if (dst_fd == STDOUT_FILENO) { /* Extracting to STDOUT */
 				i = -1;
 			} else if (last_char_is(dst_fn, '/')) { /* Extract directory */
-				if (lstat(dst_fn, &stat_buf) == -1) {
+				if (stat(dst_fn, &stat_buf) == -1) {
 					if (errno != ENOENT) {
 						bb_perror_msg_and_die("cannot stat '%s'",dst_fn);
 					}
@@ -397,7 +397,7 @@ int unzip_main(int argc, char **argv)
 
 			} else {  /* Extract file */
  _check_file:
-				if (lstat(dst_fn, &stat_buf) == -1) { /* File does not exist */
+				if (stat(dst_fn, &stat_buf) == -1) { /* File does not exist */
 					if (errno != ENOENT) {
 						bb_perror_msg_and_die("cannot stat '%s'",dst_fn);
 					}

@@ -130,8 +130,8 @@ endif
 RM = rm -f
 
 #setting DCAPI to "yes" will set BOINC to "yes" also
-BOINC=no
-DCAPI=no
+BOINC=yes
+DCAPI=yes
 
 ifeq ($(findstring mingw,$(TARGET)),mingw)
 BOINC_CFLAGS=-IC:/Projects/boinc_mingw/include -IC:/Projects/openssl/include
@@ -151,24 +151,14 @@ LAUNCHER_CFLAGS+= -DWANT_DCAPI
 endif
 
 ifeq ($(BOINC),yes)
-LAUNCHER_CFLAGS+= -DWANT_BOINC
-endif
-
-#
-# Compile launcher always
-#
 LAUNCHER_CFLAGS+=-DUSE_GLIBC_ERRNO
-LAUNCHER_LDFLAGS+=-Lbox/ -lbox -lstdc++
+LAUNCHER_LDFLAGS+=-Lbox/ -lbox
 EXTRA_PROGRAMS+=gw_launcher$X
-ifeq ($(findstring mingw,$(TARGET)),mingw)
-LAUNCHER_CFLAGS+=-DWIN32 -D_WIN32 -D_MT -DNDEBUG -D_WINDOWS -DCLIENT -DNODB -D_CONSOLE -fexceptions
-endif
-
-ifeq ($(BOINC),yes)
 ifeq ($(findstring mingw,$(TARGET)),mingw)
 OPENSSLDIR=$(OPENSSL_DIR)
 ALL_LDFLAGS+=$(BOINC_LIBS) -lwinmm
 ALL_CFLAGS+=$(BOINC_CFLAGS) -DBOINC 
+LAUNCHER_CFLAGS+=-DWIN32 -D_WIN32 -D_MT -DNDEBUG -D_WINDOWS -DCLIENT -DNODB -D_CONSOLE -fexceptions
 else
 ALL_CFLAGS+=$(BOINC_CFLAGS) -DBOINC -DUSE_GLIBC_ERRNO
 ALL_LDFLAGS+=$(BOINC_LIBS)

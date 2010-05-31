@@ -42,11 +42,6 @@ enum {
 	LOG_CRIT
 };
 
-#define S_IXGRP 0
-#define S_IXOTH 0
-#define S_IRGRP 0
-#define S_IROTH 0
-
 #endif
 
 void gw_init();
@@ -58,5 +53,4 @@ void gw_finish(int status, double total_cpu_time = 0);
 void gw_report_fraction_done(double fraction_done);
 void gw_report_status(double cpu_time, double fraction_done, bool final = true);
 double gw_read_fraction_done(void);
-void gw_sleep(double seconds);
 #endif // GW_COMMON_H

@@ -21,21 +21,16 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/syslog.h>
-#include <sys/time.h>
-#include <math.h>
 #endif // _WIN32
 #include <fstream>
-#ifdef WANT_BOINC
 #include "boinc_api.h"
 #include "util.h"
-#endif
 #include "gw_common.h"
 #include "common.h"
 
 
 static char *levels[8];
 
-double dtime();
 
 void gw_init() {
   // stupid windows...
@@ -80,15 +75,10 @@ void gw_do_vlog(int level, const char *fmt, va_list ap) {
 
 std::string gw_resolve_filename(const char *filename) {
   std::string filename_resolved;
-#ifdef WANT_BOINC
+
   boinc_resolve_filename_s(filename, filename_resolved);
-#else
-  filename_resolved = filename;
-#endif
   return filename_resolved;
 }
-
-
 
 
 bool gw_copy_file(const char* src, const char* dst) {
@@ -112,12 +102,12 @@ bool gw_copy_file(const char* src, const char* dst) {
     output_file.close();
     gw_do_log(LOG_ERR, "Failed to close  file '%s' ", src);
     return false;
-  }
+  }  
   output_file.close();
   if (output_file.fail()) {
     gw_do_log(LOG_ERR, "Failed to close  file '%s' ", dst);
     return false;
-  }
+  }  
   return true;
 }
 
@@ -132,14 +122,11 @@ void gw_finish(int status, double total_cpu_time) {
   resolved_filename = gw_resolve_filename(DC_LABEL_STDERR);
   gw_copy_file(STDERR_FILE, resolved_filename.c_str());
 #endif // WANT_DCAPI
-#ifdef WANT_BOINC
   boinc_finish(status);
-#endif
 }
 
 
 void gw_report_fraction_done(double fraction_done) {
-#ifdef WANT_BOINC
   char msg_buf[MSG_CHANNEL_SIZE];
   if (app_client_shm == NULL) {
     gw_do_log(LOG_ERR, "Cannot report fraction done, shared memory is not available");
@@ -149,17 +136,16 @@ void gw_report_fraction_done(double fraction_done) {
 	  "<fraction_done>%2.8f</fraction_done>\n",
 	  fraction_done);
   app_client_shm->shm->app_status.send_msg(msg_buf);
-#endif
 }
 
 
 void gw_report_status(double cpu_time, double fraction_done, bool final) {
-#ifdef WANT_BOINC
+
   char msg_buf[MSG_CHANNEL_SIZE];
 
   // do not try to report time when running standalone
   if (app_client_shm == NULL) {
-    gw_do_log(LOG_WARNING,
+    gw_do_log(LOG_WARNING, 
 	      "Cannot report cpu time (%10.4f sec), shared memory is not available",
 	      cpu_time);
     return;
@@ -183,7 +169,7 @@ void gw_report_status(double cpu_time, double fraction_done, bool final) {
     }
   }
   // <--
-#endif
+
 }
 
 
@@ -198,32 +184,4 @@ double gw_read_fraction_done(void) {
   fclose(f);
   return fraction;
 }
-
-void gw_sleep(double seconds) {
-#ifdef _WIN32
-    ::Sleep((int)(1000*seconds));
-#else
-    double end_time = dtime() + seconds - 0.01;
-    // sleep() and usleep() can be interrupted by SIGALRM,
-    // so we may need multiple calls
-    //
-    while (1) {
-        if (seconds >= 1) {
-            sleep((unsigned int) seconds);
-        } else {
-            usleep((int)fmod(seconds*1000000, 1000000));
-        }
-        seconds = end_time - dtime();
-        if (seconds <= 0) break;
-    }
-#endif
-}
-
-#ifndef _WIN32
-double dtime() {
-    struct timeval tv;
-    gettimeofday(&tv, 0);
-    return tv.tv_sec + (tv.tv_usec/1.e6);
-}
-#endif
 
