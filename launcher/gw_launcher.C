@@ -38,13 +38,21 @@
 // for parse_command_line()
 #include "str_util.h"
 #include "gw_common.h"
-// box/common.h
 #include "common.h"
 #include "task.h"
 #include "error_numbers.h"
 
 #ifdef _WIN32
 #define GENWRAPPER_EXE   "gitbox.exe"
+#ifndef S_ISGRP // not defined on Windows
+#define S_ISGRP(x) 0
+#define S_IRGRP 0
+#define S_IWGRP 0
+#define S_IXGRP 0
+#define S_ISGID 0
+#define S_IROTH 0
+#define S_IXOTH 0
+#endif // S_ISGRP
 #else
 #define GENWRAPPER_EXE   "./gitbox"
 #endif // _WIN32
