@@ -92,7 +92,8 @@ int tail_main(int argc, char **argv)
 	size_t tailbufsize;
 	int taillen = 0;
 	int newlines_seen = 0;
-	int nfiles, nread, nwrite, seen, i, opt;
+	int nfiles, nread, nwrite, i, opt;
+        unsigned seen;
 
 	int *fds;
 	char *s, *buf;
@@ -103,7 +104,7 @@ int tail_main(int argc, char **argv)
 	if (argv[1] && (argv[1][0] == '+' || argv[1][0] == '-')
 	 && isdigit(argv[1][1])
 	) {
-		count = eat_num(&argv[1][1]);
+		count = eat_num(argv[1]);
 		argv++;
 		argc--;
 	}
@@ -163,8 +164,6 @@ int tail_main(int argc, char **argv)
 	fmt = header_fmt + 1;	/* Skip header leading newline on first output. */
 	i = 0;
 	do {
-		off_t current;
-
 		if (nfiles > header_threshhold) {
 			tail_xprint_header(fmt, argv[i]);
 			fmt = header_fmt;
@@ -173,20 +172,29 @@ int tail_main(int argc, char **argv)
 		/* Optimizing count-bytes case if the file is seekable.
 		 * Beware of backing up too far.
 		 * Also we exclude files with size 0 (because of /proc/xxx) */
-		current = lseek(fds[i], 0, SEEK_END);
-		if (current > 0) {
-			if (!from_top) {
-				if (count == 0)
-					continue; /* showing zero lines is easy :) */
-				if (COUNT_BYTES) {
-					current -= count;
-					if (current < 0)
-						current = 0;
-					xlseek(fds[i], current, SEEK_SET);
-					bb_copyfd_size(fds[i], STDOUT_FILENO, count);
-					continue;
-				}
-			}
+		if (COUNT_BYTES && !from_top) {
+		   off_t current = lseek(fds[i], 0, SEEK_END);
+		   if (current > 0) {
+	        //current = lseek(fds[i], 0, SEEK_END);
+		//if (current > 0) {
+		//	if (!from_top) {
+		      if (count == 0)
+			continue; /* showing zero lines is easy :) */
+		      //if (COUNT_BYTES) {
+		      //	current -= count;
+		      //	if (current < 0)
+		      //		current = 0;
+		      //	xlseek(fds[i], current, SEEK_SET);
+		      //	bb_copyfd_size(fds[i], STDOUT_FILENO, count);
+		      //	continue;
+		      //}
+		      current -= count;
+		      if (current < 0)
+			current = 0;
+		      xlseek(fds[i], current, SEEK_SET);
+		      bb_copyfd_size(fds[i], STDOUT_FILENO, count);
+		      continue;
+		   }
 		}
 
 		buf = tailbuf;
@@ -214,7 +222,7 @@ int tail_main(int argc, char **argv)
 			} else if (count) {
 				if (COUNT_BYTES) {
 					taillen += nread;
-					if (taillen > count) {
+					if (taillen > (int)count) {
 						memmove(tailbuf, tailbuf + taillen - count, count);
 						taillen = count;
 					}
@@ -229,7 +237,7 @@ int tail_main(int argc, char **argv)
 						}
 					} while (k);
 
-					if (newlines_seen + newlines_in_buf < count) {
+					if (newlines_seen + newlines_in_buf < (int)count) {
 						newlines_seen += newlines_in_buf;
 						taillen += nread;
 					} else {
@@ -247,7 +255,7 @@ int tail_main(int argc, char **argv)
 						memmove(tailbuf, s, taillen);
 						newlines_seen = count - extra;
 					}
-					if (tailbufsize < taillen + BUFSIZ) {
+					if (tailbufsize < (size_t)taillen + BUFSIZ) {
 						tailbufsize = taillen + BUFSIZ;
 						tailbuf = xrealloc(tailbuf, tailbufsize);
 					}
