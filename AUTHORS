@@ -1,8 +1,4 @@
-Nguyen Thai Ngoc Duy <pclouds@gmail.com>
-    Original GitBox author
+pclouds:Nguyen Thai Ngoc Duy <pclouds@gmail.com>
+balaton:Balaton Zoltan <balaton@eik.bme.hu>
+atisu:Marosi Attila Csaba <atisu@sztaki.hu>
 
-Balaton Zoltan <balaton@eik.bme.hu>
-    Git independent version, porting back to Linux and Mac OS X
-
-Marosi Attila Csaba <atisu@sztaki.hu>
-    BOINC specific parts, various cleanups

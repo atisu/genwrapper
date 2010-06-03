@@ -355,6 +355,14 @@ BOX_OBJS := $(patsubst %.o,box/%.o,$(BOX_OBJS))
 
 EXTLIBS = -lm
 
+PACKAGE_FILES = \
+	gitbox$X \
+	gw_launcher$X \
+	README \
+	AUTHORS \
+	ChangeLog \
+	LICENSE
+
 #
 # Platform specific tweaks
 #
@@ -686,6 +694,21 @@ gw_launcher$X: $(LAUNCHER_OBJS) $(COMPAT_OBJS) $(BOX_FILE)
 gw_launcher$X-clean:
 	$(RM) $(LAUNCHER_OBJS) gw_launcher$X
 
+
+package: LDFLAGS+=-static
+package: clean gitbox$X gw_launcher$X
+	if [ `svnversion` != "exported" ]; then svn2cl --group-by-day --authors=AUTHORS -o ChangeLog; fi                                                    
+	case `file ./gitbox$X | cut -d " " -f 2-3,5-6,14 | tr -d ","` in \
+	     "PE32 executable MS Windows") \
+	     	  EXEARCH="win32" ;; \
+	     "ELF 32-bit executable Intel GNU/Linux") \
+	     	  EXEARCH="linux32" ;; \
+	     "ELF 64-bit executable x86-64"*) \
+	     	  EXEARCH="linux64" ;; \
+	esac; \
+	tar czf genwrapper-$${EXEARCH}-`svnversion`.tar.gz $(PACKAGE_FILES)
+
+	
 ### Cleaning rules
 
 clean:
