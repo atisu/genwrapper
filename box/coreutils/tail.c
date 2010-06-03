@@ -175,19 +175,8 @@ int tail_main(int argc, char **argv)
 		if (COUNT_BYTES && !from_top) {
 		   off_t current = lseek(fds[i], 0, SEEK_END);
 		   if (current > 0) {
-	        //current = lseek(fds[i], 0, SEEK_END);
-		//if (current > 0) {
-		//	if (!from_top) {
 		      if (count == 0)
 			continue; /* showing zero lines is easy :) */
-		      //if (COUNT_BYTES) {
-		      //	current -= count;
-		      //	if (current < 0)
-		      //		current = 0;
-		      //	xlseek(fds[i], current, SEEK_SET);
-		      //	bb_copyfd_size(fds[i], STDOUT_FILENO, count);
-		      //	continue;
-		      //}
 		      current -= count;
 		      if (current < 0)
 			current = 0;
