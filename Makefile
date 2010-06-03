@@ -701,7 +701,7 @@ package: clean gitbox$X gw_launcher$X
 	case `file ./gitbox$X | cut -d " " -f 2-3,5-6,14 | tr -d ","` in \
 	     "PE32 executable MS Windows") \
 	     	  EXEARCH="win32" ;; \
-	     "ELF 32-bit executable Intel GNU/Linux") \
+	     "ELF 32-bit executable Intel"*) \
 	     	  EXEARCH="linux32" ;; \
 	     "ELF 64-bit executable x86-64"*) \
 	     	  EXEARCH="linux64" ;; \
