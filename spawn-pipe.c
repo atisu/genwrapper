@@ -197,6 +197,19 @@ int spawnvppe_pipe(const char *cmd, const char **argv, const char **env,
 	qargv = xmalloc((argc+3)*sizeof(char*));
 	if (!interpr) {
 		quote_argv(qargv, argv);
+	        /*
+		 * When executing builtins (e.g. expr) "*" needs
+		 * quotation or else spawnve will expand it.
+		 *
+		 * Only need the quotation if the builtin is executed
+		 * form a shell script.
+		 */	   
+	        int argc_;
+	        for (argc_=1; argc_ < argc; argc_++) {
+		   if (strcmp(qargv[argc_], "*")==0) {
+		      qargv[argc_]="\"*\"";
+		   }		   			
+		}
 		pid = spawnve(_P_NOWAIT, prog, qargv, env);
 	} else {
 		if (!strcmp(interpr, "sh")) {
