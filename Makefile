@@ -707,7 +707,7 @@ package: clean gitbox$X gw_launcher$X
 	     	  EXEARCH="linux64" ;; \
 	esac; \
 	if [ "`which latex`" != "" ]; then \
-	   cd doc; make clean; make; cd ..; \
+	   $(MAKE) -C doc clean manual; \
 	   MANUALPDF=doc/manual.pdf; \
 	fi; \
 	tar czf genwrapper-$${EXEARCH}-`svnversion`.tar.gz $(PACKAGE_FILES) $${MANUALPDF}
@@ -722,6 +722,6 @@ clean:
 	$(RM) -r autom4te.cache
 	$(RM) configure config.log config.mak.autogen config.mak.append config.status config.cache
 	find . -name "*~" -exec $(RM) {} \;
-	cd doc; make clean; cd ..
+	$(MAKE) -C doc clean
 
 .PHONY: all install clean strip
