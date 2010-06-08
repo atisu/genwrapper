@@ -697,8 +697,8 @@ package: CFLAGS+=-O2
 package: clean gitbox$X gw_launcher$X
 	$(QUIET_STRIP)$(STRIP) gitbox$X
 	$(QUIET_STRIP)$(STRIP) gw_launcher$X
-	if [ `svnversion` != "exported" ]; then svn2cl --group-by-day --authors=AUTHORS -o ChangeLog; fi                                                    
-	case `file ./gitbox$X | cut -d " " -f 2-3,5-6,14 | tr -d ","` in \
+	@if [ `svnversion` != "exported" ]; then svn2cl --group-by-day --authors=AUTHORS -o ChangeLog; fi
+	@case `file ./gitbox$X | cut -d " " -f 2-3,5-6,14 | tr -d ","` in \
 	     "PE32 executable MS Windows") \
 	     	  EXEARCH="win32" ;; \
 	     "ELF 32-bit executable Intel"*) \
@@ -706,8 +706,11 @@ package: clean gitbox$X gw_launcher$X
 	     "ELF 64-bit executable x86-64"*) \
 	     	  EXEARCH="linux64" ;; \
 	esac; \
-	tar czf genwrapper-$${EXEARCH}-`svnversion`.tar.gz $(PACKAGE_FILES)
-
+	if [ "`which latex`" != "" ]; then \
+	   cd doc; make clean; make; cd ..; \
+	   MANUALPDF=doc/manual.pdf; \
+	fi; \
+	tar czf genwrapper-$${EXEARCH}-`svnversion`.tar.gz $(PACKAGE_FILES) $${MANUALPDF}
 	
 ### Cleaning rules
 
@@ -719,5 +722,6 @@ clean:
 	$(RM) -r autom4te.cache
 	$(RM) configure config.log config.mak.autogen config.mak.append config.status config.cache
 	find . -name "*~" -exec $(RM) {} \;
+	cd doc; make clean; cd ..
 
 .PHONY: all install clean strip
