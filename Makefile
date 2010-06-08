@@ -111,7 +111,7 @@ TARGET := $(shell ./config.guess)
 
 SVN_REV=$(shell if [ `which svnversion`x != x ]; then svnversion; else echo local-build; fi)
 # CFLAGS and LDFLAGS are for the users to override from the command line.
-CFLAGS = -g -O2 -Wall -DSVNREV=\"Revision:$(SVN_REV)\"
+CFLAGS = -g -Wall -DSVNREV=\"Revision:$(SVN_REV)\"
 LDFLAGS =
 ALL_CFLAGS = $(CFLAGS)
 ALL_LDFLAGS = $(LDFLAGS)
@@ -618,7 +618,7 @@ ifndef V
 	QUIET_LINK     = @echo ' ' LINK $@;
 	QUIET_BUILT_IN = @echo  BUILTIN $@;
 	QUIET_GEN      = @echo '  ' GEN $@;
-	QUIET_STRIP    = @echo    STRIP $@;
+	QUIET_STRIP    = @echo ' ' STRIP $@;
 	QUIET_SUBDIR0  = +@subdir=
 	QUIET_SUBDIR1  = ;$(NO_SUBDIR) echo '   ' SUBDIR $$subdir; \
 			 $(MAKE) $(PRINT_DIR) -C $$subdir
@@ -685,18 +685,18 @@ $(BOX_FILE): $(BOX_OBJS)
 
 gitbox$X: $(GIT_OBJS) $(BOX_FILE)
 	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $^ $(ALL_LDFLAGS) $(LIBS)
-	$(QUIET_STRIP)$(STRIP) gitbox$X
 
 gw_launcher$X: $(LAUNCHER_OBJS) $(COMPAT_OBJS) $(BOX_FILE)
 	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) $(LAUNCHER_CFLAGS) -o $@ $^ $(COMPAT_CFLAGS)  $(LAUNCHER_LDFLAGS) $(ALL_LDFLAGS) $(LIBS) 
-	$(QUIET_STRIP)$(STRIP) gw_launcher$X
 
 gw_launcher$X-clean:
 	$(RM) $(LAUNCHER_OBJS) gw_launcher$X
 
-
-package: LDFLAGS+=-static
+package: LDFLAGS+=-static 
+package: CFLAGS+=-O2
 package: clean gitbox$X gw_launcher$X
+	$(QUIET_STRIP)$(STRIP) gitbox$X
+	$(QUIET_STRIP)$(STRIP) gw_launcher$X
 	if [ `svnversion` != "exported" ]; then svn2cl --group-by-day --authors=AUTHORS -o ChangeLog; fi                                                    
 	case `file ./gitbox$X | cut -d " " -f 2-3,5-6,14 | tr -d ","` in \
 	     "PE32 executable MS Windows") \
