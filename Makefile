@@ -693,7 +693,6 @@ gw_launcher$X-clean:
 	$(RM) $(LAUNCHER_OBJS) gw_launcher$X
 
 package: LDFLAGS+=-static 
-package: CFLAGS+=-O2
 package: clean gitbox$X gw_launcher$X
 	$(QUIET_STRIP)$(STRIP) gitbox$X
 	$(QUIET_STRIP)$(STRIP) gw_launcher$X
