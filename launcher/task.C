@@ -37,6 +37,10 @@
 #include <sys/wait.h>
 #include <syslog.h>
 #endif // _WIN32
+#ifdef __APPLE__
+// for killpg()
+#include <signal.h>
+#endif
 #include "common.h"
 #include "str_util.h"
 #include "util.h"
