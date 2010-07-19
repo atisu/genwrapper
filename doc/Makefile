@@ -1,5 +1,5 @@
 
-LATEX=latex
+LATEX=pdflatex
 NAME=manual
 
 QUIET_LATEX    = @echo ' ' LATEX $@;                 
