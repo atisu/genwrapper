@@ -692,7 +692,12 @@ gw_launcher$X: $(LAUNCHER_OBJS) $(COMPAT_OBJS) $(BOX_FILE)
 gw_launcher$X-clean:
 	$(RM) $(LAUNCHER_OBJS) gw_launcher$X
 
-package: LDFLAGS+=-static 
+PACKAGEFLAGS=
+ifneq ($(shell uname),Darwin)
+ PACKAGEFLAGS+=-static
+endif
+
+package: LDFLAGS+=$(PACKAGEFLAGS)
 package: clean gitbox$X gw_launcher$X
 	$(QUIET_STRIP)$(STRIP) gitbox$X
 	$(QUIET_STRIP)$(STRIP) gw_launcher$X
@@ -704,6 +709,8 @@ package: clean gitbox$X gw_launcher$X
 	     	  EXEARCH="linux32" ;; \
 	     "ELF 64-bit executable x86-64"*) \
 	     	  EXEARCH="linux64" ;; \
+	     "Mach-O executable"*) \
+		  EXEARCH="macosx" ;; \
 	esac; \
 	if [ "`which latex`" != "" ]; then \
 	   $(MAKE) -C doc clean manual; \
