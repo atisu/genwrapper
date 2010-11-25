@@ -14,7 +14,9 @@
  $> make TARGET=i586-mingw32msvc BOINCDIR=../../../../boinc/boinc-6/
 	
  This will produce a file "libboinc.a" which can be linked with
- GenWrapper, but you'll need the headers from ${BOINCDIR}/api 
- and ${BOINCDIR}/lib .
+ GenWrapper, and will copy the necessary header files into a directory
+ named include/ .
+ 
+
  
  

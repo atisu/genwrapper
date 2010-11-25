@@ -142,7 +142,7 @@ endif
 endif
 
 ifeq ($(findstring mingw,$(TARGET)),mingw)
-BOINC_CFLAGS=-I$(BOINCDIR)/api -I$(BOINCDIR)/lib
+BOINC_CFLAGS=-I$(BOINCDIR)/api -I$(BOINCDIR)/lib -I./tools/boinc-mingw32/include/
 BOINC_LIBS=-L./tools/boinc-mingw32/ -lboinc -Wl,-Bstatic -lstdc++ -Wl,-Bdynamic -lm
 else
 BOINC_CFLAGS=-I$(BOINCDIR)

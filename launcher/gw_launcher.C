@@ -186,7 +186,7 @@ int main(int argc, char* argv[]) {
   }
   const char *wu_script = argv[1];
   if (wu_script == NULL) {
-    gw_do_log(LOG_ERR, "Work unit does not contain work unit script name (should be first command line param), "
+    gw_do_log(LOG_WARNING, "Work unit does not contain work unit script name (should be first command line param), "
 	      "going with default name (%s)", WU_SCRIPT);
     wu_script = WU_SCRIPT;
   }

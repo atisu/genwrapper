@@ -46,15 +46,33 @@ BIN  = libboinc.a
 CXXFLAGS = $(CXXINCS) $(DEBUG) --include $(BOINCDIR)/version.h -DWIN32 -D_WIN32 -D_WIN32_WINDOWS=0x0501 -D_MT -DNDEBUG -D_WINDOWS  -DBOINC -DCLIENT -DNODB -D_CONSOLE -Wall -mtune=pentium-m   -fexceptions -march=i386 -O1
 CFLAGS = $(INCS) $(DEBUG) --include $(BOINCDIR)/version.h -DWIN32 -D_WIN32 -D_WIN32_WINDOWS=0x0501 -D_MT -DNDEBUG -D_WINDOWS  -DBOINC -DCLIENT -DNODB -D_CONSOLE -Wall -mtune=pentium-m   -fexceptions -march=i386 -O1
 
+INCLUDESTOCOPY =\
+	       lib/app_ipc.h \
+	       api/boinc_api.h \
+	       lib/boinc_win.h \
+	       lib/common_defs.h \
+	       lib/diagnostics.h \
+	       lib/error_numbers.h \
+	       lib/filesys.h \
+	       lib/hostinfo.h \
+	       lib/mfile.h \
+	       lib/miofile.h \
+	       lib/parse.h \
+	       lib/prefs.h \
+	       lib/proxy_info.h \
+	       lib/str_util.h \
+	       lib/util.h \
+	       lib/win_util.h
 
 .PHONY: all all-before all-after clean clean-custom
 
 
 all: all-before $(BIN) all-after
 
+all-after: copy-files clean-up
 
 clean: clean-custom
-	${RM} $(OBJ) $(BIN)
+	${RM} -rf $(OBJ) $(BIN) include/
 
 $(BIN): $(LINKOBJ)
 	$(AR) rc $@ $(LINKOBJ)
@@ -71,3 +89,10 @@ md5.o: $(BOINCDIR)/lib/md5.c
 
 stackwalker_win.o: $(BOINCDIR)/lib/stackwalker_win.cpp
 	$(CXX) -c $(BOINCDIR)/lib/stackwalker_win.cpp -o stackwalker_win.o $(CXXFLAGS)
+
+copy-files:
+	mkdir -p include
+	cp $(addprefix $(BOINCDIR), $(INCLUDESTOCOPY)) include/
+
+clean-up:
+	${RM} $(OBJ) 
