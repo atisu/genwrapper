@@ -361,13 +361,13 @@ retry_wpid:
   werrno = errno;
   if (wpid > 0) {
     if (WIFSIGNALED(wstatus)) {
-      status = 255;
+      status = EXIT_FAILURE;
       gw_do_log(LOG_INFO, "proccess killed by signal %d", WTERMSIG(wstatus));
     } else if (WIFEXITED(wstatus)) {
       status = WEXITSTATUS(wstatus);
       gw_do_log(LOG_INFO, "process exited with status: %d", status);
     } else {
-      status = 255;
+      status = EXIT_FAILURE;
       gw_do_log(LOG_WARNING, "unhandled wait4() status");      
     }
     final_cpu_time = (double)ru.ru_utime.tv_sec + ((double)ru.ru_utime.tv_usec)/1e+6;

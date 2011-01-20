@@ -138,7 +138,7 @@ int main(int argc, char* argv[]) {
       fclose(f);
     } else {
       gw_do_log(LOG_ERR, "Failed to create DC-API file '%s'", dc_files[i]);
-      gw_finish(255);    
+      gw_finish(EXIT_FAILURE);    
     }
   }
 #else
@@ -167,7 +167,7 @@ int main(int argc, char* argv[]) {
     gw_do_log(LOG_INFO, "Unzipping '%s'", filename.c_str());
     if (unzip_main(zip_argc, (char **)zip_argv)) {
       gw_do_log(LOG_ERR, "Failed to unzip '%s'", zip_filename_resolved.c_str());
-      gw_finish(255);
+      gw_finish(EXIT_FAILURE);
     }
   } else {
     gw_do_log(LOG_INFO, "Zipfile not found '%s'", zip_filename_resolved.c_str());
@@ -181,7 +181,7 @@ int main(int argc, char* argv[]) {
        S_IRUSR | S_IRGRP | S_IROTH) == -1) {
        gw_do_log(LOG_ERR, "Cannot set executable flag for Wrapper executable '%s': %s",
          genwrapper_exe_resolved.c_str(), strerror(errno));
-       gw_finish(255);  
+       gw_finish(EXIT_FAILURE);  
     }     
   }
   const char *wu_script = argv[1];
@@ -192,7 +192,7 @@ int main(int argc, char* argv[]) {
   }
   if (access(wu_script, R_OK)) {
     gw_do_log(LOG_ERR, "Script '%s' does not exist", wu_script);
-    gw_finish(255);        
+    gw_finish(EXIT_FAILURE);        
   }
 
   // create script file which execs profile and the wu supplied (argv[1]) script
@@ -204,7 +204,7 @@ int main(int argc, char* argv[]) {
   exec_script.close();
   if (exec_script.fail()) {
     gw_do_log(LOG_ERR, "Failed to create the initialization script");
-    gw_finish(255);
+    gw_finish(EXIT_FAILURE);
   }
   TASK gw_task;
   vector<string> args;
@@ -215,7 +215,7 @@ int main(int argc, char* argv[]) {
     args.push_back(string(argv[i]));
   if (gw_task.run(args) == ERR_EXEC) {
     gw_do_log(LOG_ERR, "Could not exec %s\n", genwrapper_exe_resolved.c_str());
-    gw_finish(255);
+    gw_finish(EXIT_FAILURE);
   }
   
   while(1) {
