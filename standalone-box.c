@@ -2,6 +2,17 @@
 #include "busybox.h"
 #include "quote.h"
 
+#ifdef _WIN32
+/* 
+ * Disable wildcard commandline parameter expansion for 
+ * MinGW ('globbing'). It is defined by CRT_noglob.o 
+ * (in the MinGW library directory), instead of linking
+ * we define it here.
+ * 
+ */
+int _CRT_glob = 0;
+#endif
+
 static void prepend_to_path(const char *dir, int len)
 {
 	const char *old_path = getenv("PATH");
