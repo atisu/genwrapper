@@ -167,7 +167,6 @@ void controlProcessesInJob(HANDLE hJobObject_, BOOL bSuspend) {
 
 bool addProcessesToJobObject(HANDLE hJobObject_) {
   PROCESSENTRY32 pe32;
-  //JOBOBJECT_BASIC_PROCESS_ID_LIST PidList;
   unsigned int i;
   HANDLE hOpenProcess = INVALID_HANDLE_VALUE;
   HANDLE hProcessSnap = INVALID_HANDLE_VALUE;
