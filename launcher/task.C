@@ -167,11 +167,14 @@ void controlProcessesInJob(HANDLE hJobObject_, BOOL bSuspend) {
 
 bool addProcessesToJobObject(HANDLE hJobObject_) {
   PROCESSENTRY32 pe32;
-  JOBOBJECT_BASIC_PROCESS_ID_LIST PidList;
+  //JOBOBJECT_BASIC_PROCESS_ID_LIST PidList;
   unsigned int i;
   HANDLE hOpenProcess = INVALID_HANDLE_VALUE;
   HANDLE hProcessSnap = INVALID_HANDLE_VALUE;
-
+  // assume max 25 processes in job object
+  DWORD cb = sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST) +
+           (25 - 1) * sizeof(DWORD);
+   
   hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
   if (hProcessSnap == INVALID_HANDLE_VALUE)
     return false;
@@ -182,16 +185,23 @@ bool addProcessesToJobObject(HANDLE hJobObject_) {
     CloseHandle(hProcessSnap);
     return false;
   }
-  if (!QueryInformationJobObject(hJobObject_, (JOBOBJECTINFOCLASS)3, &PidList, 
-				 sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST)*2, 
-				 NULL)) {
+   
+  // Allocate the block of memory. (Since _alloca() is used, no need to free it.)
+  PJOBOBJECT_BASIC_PROCESS_ID_LIST PidList =
+    (PJOBOBJECT_BASIC_PROCESS_ID_LIST)_alloca(cb);
+   
+  if (!QueryInformationJobObject(hJobObject_, 
+    (JOBOBJECTINFOCLASS)3, 
+    PidList,
+    cb,
+    NULL)) {
     gw_do_log(LOG_ERR, "%s: failed to query information (%ld)", __FUNCTION__, (long)GetLastError());
     CloseHandle(hProcessSnap);
     return false;
   }
   do {
-      for (i=0; i<PidList.NumberOfProcessIdsInList; i++) {
-	if (pe32.th32ParentProcessID == PidList.ProcessIdList[i]) {
+      for (i=0; i<PidList->NumberOfProcessIdsInList; i++) {
+	if (pe32.th32ParentProcessID == PidList->ProcessIdList[i]) {
 	  hOpenProcess = OpenProcess(PROCESS_ALL_ACCESS, TRUE, pe32.th32ProcessID);
 	  if (hOpenProcess == NULL) {
 	    gw_do_log(LOG_ERR, "%s: cannot open process", __FUNCTION__);
@@ -204,7 +214,7 @@ bool addProcessesToJobObject(HANDLE hJobObject_) {
 	    return false;
 	  } else {
 	    gw_do_log(LOG_DEBUG, "%s: added process %d to JobObject", 
-		      __FUNCTION__, PidList.ProcessIdList[i]);
+		      __FUNCTION__, PidList->ProcessIdList[i]);
 	  }
 	  CloseHandle(hOpenProcess);
 	} 
