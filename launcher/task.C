@@ -48,6 +48,9 @@
 
 #ifdef _WIN32
 
+// assume max 25 processes in job object
+#define JOB_OBJECT_MAX_SIZE  25
+
 // for SuspendProcess/ ResumeProcess
 typedef LONG (NTAPI *_NtSuspendProcess)(IN HANDLE ProcessHandle);
 typedef LONG (NTAPI *_NtResumeProcess)(IN HANDLE ProcessHandle);
@@ -55,31 +58,29 @@ typedef LONG (NTAPI *_NtResumeProcess)(IN HANDLE ProcessHandle);
 _NtSuspendProcess NtSuspendProcess;
 _NtResumeProcess NtResumeProcess;
 
+
 // CreateProcess() takes HANDLEs for the stdin/stdout.
 // We need to use CreateFile() to get them.  Ugh.
 HANDLE win_fopen(const char* path, const char* mode) {
-  std::string path_ = gw_resolve_filename(path);
-  SECURITY_ATTRIBUTES sa;
-  memset(&sa, 0, sizeof(sa));
-  sa.nLength = sizeof(sa);
-  sa.bInheritHandle = TRUE;
+    std::string path_ = gw_resolve_filename(path);
+    SECURITY_ATTRIBUTES sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.nLength = sizeof(sa);
+    sa.bInheritHandle = TRUE;
 
-  if (!strcmp(mode, "r")) {
-    return CreateFile(
-		      path_.c_str(),
-		      GENERIC_READ,
-		      FILE_SHARE_READ,
-		      &sa,
-		      OPEN_EXISTING,
-		      0, 
-		      0
-		      );
-  } else if (!strcmp(mode, "w")) {
-    return CreateFile(
-		      path_.c_str(),
-		      GENERIC_WRITE,
-		      FILE_SHARE_WRITE | FILE_SHARE_READ,
-		      &sa,
+    if (!strcmp(mode, "r")) {
+        return CreateFile(path_.c_str(),
+		                  GENERIC_READ,
+		                  FILE_SHARE_READ,
+		                  &sa,
+                          OPEN_EXISTING,
+                          0, 
+                          0);
+    } else if (!strcmp(mode, "w")) {
+        return CreateFile(path_.c_str(),
+                          GENERIC_WRITE,
+                          FILE_SHARE_WRITE | FILE_SHARE_READ,
+                          &sa,
 		      OPEN_ALWAYS,
 		      0, 
 		      0
@@ -101,151 +102,201 @@ HANDLE win_fopen(const char* path, const char* mode) {
   }
 }
 
+void listProcessesInJob(HANDLE hJobObject) {
+    unsigned int i;
+    DWORD cb = sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST) +
+        (JOB_OBJECT_MAX_SIZE - 1) * sizeof(DWORD);
+    // Allocate the block of memory. (Since _alloca() is used, no need to free it.)
+    PJOBOBJECT_BASIC_PROCESS_ID_LIST PidList =
+        (PJOBOBJECT_BASIC_PROCESS_ID_LIST)_alloca(cb);
+
+    if (!QueryInformationJobObject(hJobObject, 
+                                   (JOBOBJECTINFOCLASS)3, 
+                                   PidList,
+                                   cb,
+                                   NULL)) {
+        gw_do_log(LOG_WARNING, "%s: failed to query information (error: %ld)", __FUNCTION__, 
+                  (long)GetLastError());
+    } else {
+        gw_do_log(LOG_DEBUG, "%s: Process id-s in the JobObject:", __FUNCTION__);
+        for (i=0; i<PidList->NumberOfProcessIdsInList; i++) {
+            gw_do_log(LOG_DEBUG, "%s: %ld", __FUNCTION__, PidList->ProcessIdList[i]);
+        }
+    }
+}
+
 
 // not used currently
 void killProcessesInJob(HANDLE hJobObject_) {
-  JOBOBJECT_BASIC_PROCESS_ID_LIST PidList;
-  unsigned int i;
-  HANDLE hOpenProcess;
-  if (!QueryInformationJobObject(hJobObject_,  (JOBOBJECTINFOCLASS)3, &PidList,
-				 sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST)*2, NULL)) {
-    gw_do_log(LOG_ERR, "%s: failed to query information (%ld)\n", __FUNCTION__, (long)GetLastError());
-  } else {
-    for (i=0; i<PidList.NumberOfProcessIdsInList; i++) {
-      hOpenProcess = OpenProcess(PROCESS_ALL_ACCESS, TRUE, PidList.ProcessIdList[i]);
-      if (hOpenProcess == NULL) {
-	gw_do_log(LOG_ERR, "%s: cannot open process", __FUNCTION__);
-      } else {  
-	if (!TerminateProcess(hOpenProcess, 2)) {
-	  gw_do_log(LOG_ERR, "%s: cannot kill process %d (%ld)", PidList.ProcessIdList[i], 
-		    __FUNCTION__, (long)GetLastError()); 
-	}
-	CloseHandle(hOpenProcess);
-      }
+    JOBOBJECT_BASIC_PROCESS_ID_LIST PidList;
+    unsigned int i;
+    HANDLE hOpenProcess;
+    if (!QueryInformationJobObject(hJobObject_,  (JOBOBJECTINFOCLASS)3, &PidList,
+                                   sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST)*2, NULL)) {
+        gw_do_log(LOG_WARNING, "%s: failed to query information (%ld)\n", __FUNCTION__, (long)GetLastError());
+    } else {
+        for (i=0; i<PidList.NumberOfProcessIdsInList; i++) {
+            hOpenProcess = OpenProcess(PROCESS_ALL_ACCESS, TRUE, PidList.ProcessIdList[i]);
+            if (hOpenProcess == NULL) {
+	            gw_do_log(LOG_WARNING, "%s: cannot open process", __FUNCTION__);
+            } else {  
+	            if (!TerminateProcess(hOpenProcess, 2)) {
+	                gw_do_log(LOG_WARNING, "%s: cannot kill process %d (%ld)", PidList.ProcessIdList[i], 
+		                      __FUNCTION__, (long)GetLastError()); 
+	            }
+	            CloseHandle(hOpenProcess);
+            }
+        }
     }
-  }
 }
 
 
 void controlProcessesInJob(HANDLE hJobObject_, BOOL bSuspend) {
-  JOBOBJECT_BASIC_PROCESS_ID_LIST PidList;
-  unsigned int i;
-  HANDLE hOpenProcess;
-  if (!QueryInformationJobObject(hJobObject_, (JOBOBJECTINFOCLASS)3, &PidList,
-				 sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST)*2, 
-				 NULL)) {
-    gw_do_log(LOG_ERR, "%s: failed to query information (%ld)", __FUNCTION__, (long)GetLastError());
-  } else {
-    for (i=0; i<PidList.NumberOfProcessIdsInList; i++) {
-      hOpenProcess = OpenProcess(PROCESS_ALL_ACCESS, TRUE, PidList.ProcessIdList[i]);
-      if (hOpenProcess == NULL) {
-	gw_do_log(LOG_ERR, "%s: cannot open process", __FUNCTION__);
-      } else {  
-	if (bSuspend) {
-	  NtSuspendProcess = 0;
-	  NtSuspendProcess = (_NtSuspendProcess) 
-	    GetProcAddress( GetModuleHandle( "ntdll" ), "NtSuspendProcess" );
-	  if (NtSuspendProcess)
-	    NtSuspendProcess(hOpenProcess);
-	  else 
-	    gw_do_log(LOG_ERR, "%s: cannot import NtSuspendProcess() from ntdll", __FUNCTION__);	  
-	} else {
-	  NtResumeProcess = 0;
-	  NtResumeProcess = (_NtResumeProcess) 
-	    GetProcAddress( GetModuleHandle( "ntdll" ), "NtResumeProcess" );
-	  if (NtResumeProcess)
-	    NtResumeProcess(hOpenProcess);
-	  else 
-	    gw_do_log(LOG_ERR, "%s: cannot import NtResumeProcess() from ntdll", __FUNCTION__);
-	}
-	CloseHandle(hOpenProcess);
-      }
+    unsigned int i;
+    HANDLE hOpenProcess;
+    DWORD cb = sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST) +
+        (JOB_OBJECT_MAX_SIZE - 1) * sizeof(DWORD);
+    // Allocate the block of memory. (Since _alloca() is used, no need to free it.)
+    PJOBOBJECT_BASIC_PROCESS_ID_LIST PidList =
+        (PJOBOBJECT_BASIC_PROCESS_ID_LIST)_alloca(cb);
+
+    if (!QueryInformationJobObject(hJobObject_, 
+                                   (JOBOBJECTINFOCLASS)3, 
+                                   PidList,
+                                   cb,
+                                   NULL)) {
+        gw_do_log(LOG_WARNING, "%s: failed to query information (error: %ld)", __FUNCTION__, 
+                  (long)GetLastError());
+        return;
     }
-  }
+    for (i=0; i<PidList->NumberOfProcessIdsInList; i++) {
+        // skip pid == 1 (??), pid == 4 (system process), pid == 0 (idle process)
+        if (PidList->ProcessIdList[i] == 0 || PidList->ProcessIdList[i] == 1 ||
+            PidList->ProcessIdList[i] == 4) {
+            continue;
+        }
+        hOpenProcess = OpenProcess(PROCESS_ALL_ACCESS, TRUE, PidList->ProcessIdList[i]);
+        if (hOpenProcess == NULL) {
+	        gw_do_log(LOG_WARNING, "%s: cannot open process (error: %ld, pid: %ld)", 
+                      __FUNCTION__, (long)GetLastError(), PidList->ProcessIdList[i]);
+        } else {  
+	        if (bSuspend) {
+	            NtSuspendProcess = 0;
+	            NtSuspendProcess = (_NtSuspendProcess) 
+	            GetProcAddress( GetModuleHandle( "ntdll" ), "NtSuspendProcess" );
+                if (NtSuspendProcess) {
+                    /*
+                    gw_do_log(LOG_DEBUG, "%s: Suspending process %ld", 
+                              __FUNCTION__, PidList->ProcessIdList[i]);
+                    */ 
+	                NtSuspendProcess(hOpenProcess);
+                    /*
+                    gw_do_log(LOG_DEBUG, "%s: Suspending process %ld done...", 
+                              __FUNCTION__, PidList->ProcessIdList[i]);
+                    */ 
+    	        } else 
+	                gw_do_log(LOG_WARNING, "%s: cannot import NtSuspendProcess() from ntdll", __FUNCTION__);
+	        } else {
+	            NtResumeProcess = 0;
+	            NtResumeProcess = (_NtResumeProcess) 
+	            GetProcAddress( GetModuleHandle( "ntdll" ), "NtResumeProcess" );
+                if (NtResumeProcess) {
+                    /*
+                    gw_do_log(LOG_DEBUG, "%s: Resuming process %ld",
+                              __FUNCTION__, PidList->ProcessIdList[i]);
+                    */ 
+	                NtResumeProcess(hOpenProcess);
+                    /*
+                    gw_do_log(LOG_DEBUG, "%s: Resuming process %ld done...", 
+                              __FUNCTION__, PidList->ProcessIdList[i]);
+                    */ 
+	            } else 
+	                gw_do_log(LOG_WARNING, "%s: cannot import NtResumeProcess() from ntdll", __FUNCTION__);
+	        }
+	        CloseHandle(hOpenProcess);
+        }
+    }
 } 
 
 
 bool addProcessesToJobObject(HANDLE hJobObject_) {
-  PROCESSENTRY32 pe32;
-  unsigned int i;
-  HANDLE hOpenProcess = INVALID_HANDLE_VALUE;
-  HANDLE hProcessSnap = INVALID_HANDLE_VALUE;
-  // assume max 25 processes in job object
-  DWORD cb = sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST) +
-           (25 - 1) * sizeof(DWORD);
+    PROCESSENTRY32 pe32;
+    unsigned int i;
+    HANDLE hOpenProcess = INVALID_HANDLE_VALUE;
+    HANDLE hProcessSnap = INVALID_HANDLE_VALUE;
+
+    DWORD cb = sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST) +
+        (JOB_OBJECT_MAX_SIZE - 1) * sizeof(DWORD);
    
-  hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-  if (hProcessSnap == INVALID_HANDLE_VALUE)
-    return false;
-  pe32.dwSize = sizeof(PROCESSENTRY32);
+    hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hProcessSnap == INVALID_HANDLE_VALUE)
+        return false;
+    pe32.dwSize = sizeof(PROCESSENTRY32);
 
-  if( !Process32First( hProcessSnap, &pe32 ) ) {
-    gw_do_log(LOG_ERR, "%s: Process32First() failed", __FUNCTION__ );
-    CloseHandle(hProcessSnap);
-    return false;
-  }
-   
-  // Allocate the block of memory. (Since _alloca() is used, no need to free it.)
-  PJOBOBJECT_BASIC_PROCESS_ID_LIST PidList =
-    (PJOBOBJECT_BASIC_PROCESS_ID_LIST)_alloca(cb);
-   
-  if (!QueryInformationJobObject(hJobObject_, 
-    (JOBOBJECTINFOCLASS)3, 
-    PidList,
-    cb,
-    NULL)) {
-    gw_do_log(LOG_ERR, "%s: failed to query information (%ld)", __FUNCTION__, (long)GetLastError());
-    CloseHandle(hProcessSnap);
-    return false;
-  }
-  do {
-      for (i=0; i<PidList->NumberOfProcessIdsInList; i++) {
-	if (pe32.th32ParentProcessID == PidList->ProcessIdList[i]) {
-	  hOpenProcess = OpenProcess(PROCESS_ALL_ACCESS, TRUE, pe32.th32ProcessID);
-	  if (hOpenProcess == NULL) {
-	    gw_do_log(LOG_ERR, "%s: cannot open process", __FUNCTION__);
-	    CloseHandle(hProcessSnap);
-	    return false;
-	  }
-	  if (!AssignProcessToJobObject(hJobObject_, hOpenProcess)) {
-	    CloseHandle(hProcessSnap);
-	    CloseHandle(hOpenProcess);
-	    return false;
-	  } else {
-	    gw_do_log(LOG_DEBUG, "%s: added process %d to JobObject", 
-		      __FUNCTION__, PidList->ProcessIdList[i]);
-	  }
-	  CloseHandle(hOpenProcess);
-	} 
-      }
-  } while(Process32Next(hProcessSnap, &pe32));
-  CloseHandle(hProcessSnap);
-  return true;
-}
-
-
-void listProcessesInJob(HANDLE hJobObject) {
-  JOBOBJECT_BASIC_PROCESS_ID_LIST PidList;
-  unsigned int i;
-
-  if (!QueryInformationJobObject(hJobObject, (JOBOBJECTINFOCLASS)3, &PidList, 
-				 sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST)*2, 
-				 NULL)) {
-    gw_do_log(LOG_ERR, "%s: failed to query information (%ld)", __FUNCTION__, (long)GetLastError());
-  } else {
-    gw_do_log(LOG_DEBUG, "%s: Process id-s in the JobObject:", __FUNCTION__);
-    for (i=0; i<PidList.NumberOfProcessIdsInList; i++) {
-      gw_do_log(LOG_DEBUG, "%s: %ld", __FUNCTION__, PidList.ProcessIdList[i]);
+    if( !Process32First( hProcessSnap, &pe32 ) ) {
+        gw_do_log(LOG_WARNING, "%s: Process32First() failed (error: %ld)", 
+                  __FUNCTION__, (long)GetLastError());
+        CloseHandle(hProcessSnap);
+        return false;
     }
-  }
+   
+    // Allocate the block of memory. (Since _alloca() is used, no need to free it.)
+    PJOBOBJECT_BASIC_PROCESS_ID_LIST PidList =
+        (PJOBOBJECT_BASIC_PROCESS_ID_LIST)_alloca(cb);
+   
+    if (!QueryInformationJobObject(hJobObject_, 
+        (JOBOBJECTINFOCLASS)3, 
+        PidList,
+        cb,
+        NULL)) {
+        gw_do_log(LOG_WARNING, "%s: failed to query information (error: %ld)", 
+                  __FUNCTION__, (long)GetLastError());
+        CloseHandle(hProcessSnap);
+        return false;
+    }
+
+    /*
+    listProcessesInJob(hJobObject_);
+    */
+   
+    do {
+        for (i=0; i<PidList->NumberOfProcessIdsInList; i++) {
+	        if (pe32.th32ParentProcessID == PidList->ProcessIdList[i]) {
+	            hOpenProcess = OpenProcess(PROCESS_ALL_ACCESS, TRUE, pe32.th32ProcessID);
+	            if (hOpenProcess == NULL) {
+	                gw_do_log(LOG_WARNING, "%s: cannot open process (pid: %ld, error: %ld)",
+                              __FUNCTION__, PidList->ProcessIdList[i], (long)GetLastError());
+	                CloseHandle(hProcessSnap);
+	                return false;
+	            }
+	            if (!AssignProcessToJobObject(hJobObject_, hOpenProcess)) {
+	                CloseHandle(hProcessSnap);
+	                CloseHandle(hOpenProcess);
+	                return false;
+	            } else {
+	                gw_do_log(LOG_DEBUG, "%s: added process %d to JobObject", 
+		                __FUNCTION__, PidList->ProcessIdList[i]);
+	            }
+	            CloseHandle(hOpenProcess);
+	        } 
+        }
+    } while(Process32Next(hProcessSnap, &pe32));
+    CloseHandle(hProcessSnap);
+    return true;
 }
+
 #endif
 
 
 TASK::TASK() {
-  frac_done = 0.0;
-  final_cpu_time = 0.0;
-  wall_cpu_time = 0.0;
+    frac_done = 0.0;
+    final_cpu_time = 0.0;
+    wall_cpu_time = 0.0;
+#ifdef _WIN32
+    hProcess = INVALID_HANDLE_VALUE;
+    hThread = INVALID_HANDLE_VALUE;
+    hJobObject = INVALID_HANDLE_VALUE;
+#endif
 }
 
 
@@ -263,7 +314,7 @@ int TASK::run(vector<string> &args) {
   // create a JobObject without a name to avoid collosions
   hJobObject=CreateJobObject(&SecAttrs, NULL);
   if (hJobObject == NULL) {
-    gw_do_log(LOG_ERR, "Failed to create job object (Error code: %ld)", (long)GetLastError());
+    gw_do_log(LOG_WARNING, "Failed to create job object (Error code: %ld)", (long)GetLastError());
   }
 
   ZeroMemory(&startup_info, sizeof(startup_info));
