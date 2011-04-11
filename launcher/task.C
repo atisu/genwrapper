@@ -302,175 +302,172 @@ TASK::TASK() {
 
 int TASK::run(vector<string> &args) {
 #ifdef _WIN32
-  PROCESS_INFORMATION process_info;
-  STARTUPINFO startup_info;
-  SECURITY_ATTRIBUTES SecAttrs;
-  string command;
+    PROCESS_INFORMATION process_info;
+    STARTUPINFO startup_info;
+    SECURITY_ATTRIBUTES SecAttrs;
+    string command;
 
-  ZeroMemory(&SecAttrs, sizeof(SECURITY_ATTRIBUTES));
-  SecAttrs.nLength = sizeof(SECURITY_ATTRIBUTES);
-  SecAttrs.bInheritHandle = TRUE;
-  SecAttrs.lpSecurityDescriptor = NULL;
-  // create a JobObject without a name to avoid collosions
-  hJobObject=CreateJobObject(&SecAttrs, NULL);
-  if (hJobObject == NULL) {
-    gw_do_log(LOG_WARNING, "Failed to create job object (Error code: %ld)", (long)GetLastError());
-  }
+    ZeroMemory(&SecAttrs, sizeof(SECURITY_ATTRIBUTES));
+    SecAttrs.nLength = sizeof(SECURITY_ATTRIBUTES);
+    SecAttrs.bInheritHandle = TRUE;
+    SecAttrs.lpSecurityDescriptor = NULL;
+    // create a JobObject without a name to avoid collosions
+    hJobObject=CreateJobObject(&SecAttrs, NULL);
+    if (hJobObject == NULL)
+        gw_do_log(LOG_WARNING, "Failed to create job object (Error code: %ld)", 
+                  (long)GetLastError());
 
-  ZeroMemory(&startup_info, sizeof(startup_info));
-  ZeroMemory(&process_info, sizeof(process_info));
-  startup_info.cb = sizeof(startup_info);
-  startup_info.dwFlags = STARTF_USESTDHANDLES;
-  // we need to redirect stdout/ stderr to somewhere or they'll
-  // get lost. we redirect them to the standard boinc stdout/ stderr,
-  // and dc-api will copy them to its stderr/stdout files before exit.
-  startup_info.hStdError = win_fopen(STDERR_FILE, "w");
-  startup_info.hStdOutput = win_fopen(STDOUT_FILE, "w");
-  startup_info.hStdInput = NULL;
+    ZeroMemory(&startup_info, sizeof(startup_info));
+    ZeroMemory(&process_info, sizeof(process_info));
+    startup_info.cb = sizeof(startup_info);
+    startup_info.dwFlags = STARTF_USESTDHANDLES;
+    // we need to redirect stdout/ stderr to somewhere or they'll
+    // get lost. we redirect them to the standard boinc stdout/ stderr,
+    // and dc-api will copy them to its stderr/stdout files before exit.
+    startup_info.hStdError = win_fopen(STDERR_FILE, "w");
+    startup_info.hStdOutput = win_fopen(STDOUT_FILE, "w");
+    startup_info.hStdInput = NULL;
 
-  for (vector<string>::const_iterator it = args.begin(); it != args.end(); it++)
-    command += (*it) + " ";
+    for (vector<string>::const_iterator it = args.begin(); it != args.end(); it++)
+        command += (*it) + " ";
 
-  if (!CreateProcess(
-		     NULL, 
-		     (LPSTR)command.c_str(),
-		     NULL,
-		     NULL,
-		     true,		// bInheritHandles
-		     CREATE_NO_WINDOW | IDLE_PRIORITY_CLASS | CREATE_NEW_PROCESS_GROUP,
-		     NULL,
-		     NULL,
-		     &startup_info,
-		     &process_info
-		     )) {
-    gw_do_log(LOG_ERR, "CreateProcess failed (%ld)", (long)GetLastError()); 
-    return ERR_EXEC;
-  }
-  hProcess = process_info.hProcess;
-  hThread = process_info.hThread;
-  SetThreadPriority(hThread, THREAD_PRIORITY_IDLE);
-  if (!AssignProcessToJobObject(hJobObject, hProcess)) {
-    gw_do_log(LOG_ERR, "failed to add current process to the JobObject (Error code: %ld)", (long)GetLastError());
-  }
-  gw_do_log(LOG_DEBUG, "CreateProcess returns %ld as process id", process_info.dwProcessId);
-  suspended = false;
-#else
-  pid = fork();
-  if (pid == -1) {
-    gw_do_log(LOG_ERR, "fork() failed: %s", strerror(errno));
-    gw_finish(ERR_FORK);
-  }
-  if (pid == 0) {
-    // we're in the child process here
-    //
-    // create a new process group with the id of the child process, so we can control all
-    // (future) child processes from the parent.
-    // NOTE: when job control is enabled in gitbox, it will create new process groups for its subshells ;(
-    if (setpgid(getpid(), getpid()) == -1) {
-      gw_do_log(LOG_ERR, "process id and the new process group id does not match !! (%d/%d)", 
-		getpgid(0), getpid());
-      exit(ERR_EXEC);
+    if (!CreateProcess(NULL, 
+		               (LPSTR)command.c_str(),
+		               NULL,
+		               NULL,
+		               true,		// bInheritHandles
+		               CREATE_NO_WINDOW | IDLE_PRIORITY_CLASS | CREATE_NEW_PROCESS_GROUP,
+		               NULL,
+		               NULL,
+		               &startup_info,
+		               &process_info)) {
+        gw_do_log(LOG_ERR, "CreateProcess failed (%ld)", (long)GetLastError()); 
+        return ERR_EXEC;
     }
-    gw_do_log(LOG_INFO, "i am the first child and my process group is %d", getpgid(getpid()));
-    const char **argv = (const char **)malloc(sizeof(*argv) * (args.size() + 1));
-    size_t i;
-    for (i = 0; i < args.size(); i++)
-      argv[i] = args.at(i).c_str();
-    argv[i] = NULL;
+    hProcess = process_info.hProcess;
+    hThread = process_info.hThread;
+    SetThreadPriority(hThread, THREAD_PRIORITY_IDLE);
+    if (!AssignProcessToJobObject(hJobObject, hProcess))
+        gw_do_log(LOG_ERR, "failed to add current process to the JobObject (Error code: %ld)", (long)GetLastError());
+    gw_do_log(LOG_DEBUG, "CreateProcess returns %ld as process id", process_info.dwProcessId);
+    suspended = false;
+#else
+    pid = fork();
+    if (pid == -1) {
+        gw_do_log(LOG_ERR, "fork() failed: %s", strerror(errno));
+        gw_finish(ERR_FORK);
+    }
+    if (pid == 0) {
+        // we're the child process
+        //
+        // create a new process group with the id of the child process, so we can control all
+        // (future) child processes from the parent.
+        // NOTE: when job control is enabled in gitbox, it will create new process groups for its subshells ;(
+        if (setpgid(getpid(), getpid()) == -1) {
+            gw_do_log(LOG_ERR, "process id and the new process group id does not match !! (%d/%d)", 
+		              getpgid(0), getpid());
+            exit(ERR_EXEC);
+        }
+        gw_do_log(LOG_INFO, "i am the first child and my process group is %d", getpgid(getpid()));
+        const char **argv = (const char **)malloc(sizeof(*argv) * (args.size() + 1));
+        size_t i;
+        for (i = 0; i < args.size(); i++)
+            argv[i] = args.at(i).c_str();
+        argv[i] = NULL;
 
-    execv(argv[0], (char *const *)argv);
-    gw_do_log(LOG_ERR, "Could not execute '%s': %s", argv[0], strerror(errno));
-    exit(ERR_EXEC);
-  }
+        execv(argv[0], (char *const *)argv);
+        gw_do_log(LOG_ERR, "Could not execute '%s': %s", argv[0], strerror(errno));
+        exit(ERR_EXEC);
+    }
 #endif
-  return 0;
+    return 0;
 }
 
 
 bool TASK::poll(int& status) {
-  double frac_done_t = gw_read_fraction_done();
-  if (frac_done_t > frac_done)
-    frac_done = frac_done_t;
+    double frac_done_t = gw_read_fraction_done();
+    if (frac_done_t > frac_done)
+        frac_done = frac_done_t;
 #ifdef _WIN32
-  unsigned long exit_code;
-  JOBOBJECT_BASIC_ACCOUNTING_INFORMATION Rusage;
+    unsigned long exit_code;
+    JOBOBJECT_BASIC_ACCOUNTING_INFORMATION Rusage;
 
-  addProcessesToJobObject(hJobObject);
-  if (GetExitCodeProcess(hProcess, &exit_code)) {
-    if (!QueryInformationJobObject(hJobObject, (JOBOBJECTINFOCLASS)1, &Rusage, 
-				   sizeof(JOBOBJECT_BASIC_ACCOUNTING_INFORMATION), 
-				   NULL)) {
-      gw_do_log(LOG_ERR, "failed to query information on JobObject (%ld)", 
-		(long)GetLastError());
-    } else {
-      final_cpu_time = Rusage.TotalUserTime.QuadPart / 10000000.0;
-    }
-    gw_report_status(final_cpu_time, frac_done, false);
-    if (exit_code != STILL_ACTIVE) {
-      status = exit_code;
-      return true;
-    }
-  }  
+    addProcessesToJobObject(hJobObject);
+    if (GetExitCodeProcess(hProcess, &exit_code)) {
+        if (!QueryInformationJobObject(hJobObject, (JOBOBJECTINFOCLASS)1, &Rusage, 
+				                       sizeof(JOBOBJECT_BASIC_ACCOUNTING_INFORMATION), 
+				                       NULL)) {
+            gw_do_log(LOG_ERR, "failed to query information on JobObject (%ld)", 
+		    (long)GetLastError());
+        } else {
+            final_cpu_time = Rusage.TotalUserTime.QuadPart / 10000000.0;
+        }
+        gw_report_status(final_cpu_time, frac_done, false);
+        if (exit_code != STILL_ACTIVE) {
+            status = exit_code;
+            return true;
+        }
+    }  
 #else
-  int wpid, wstatus, werrno;
-  struct rusage ru;
+    int wpid, wstatus, werrno;
+    struct rusage ru;
   
-retry_wpid:
+    retry_wpid:
   
-  wpid = wait4(-pid, &wstatus, WNOHANG, &ru);
-  werrno = errno;
-  if (wpid > 0) {
-    if (WIFSIGNALED(wstatus)) {
-      status = EXIT_FAILURE;
-      gw_do_log(LOG_INFO, "proccess killed by signal %d", WTERMSIG(wstatus));
-    } else if (WIFEXITED(wstatus)) {
-      status = WEXITSTATUS(wstatus);
-      gw_do_log(LOG_INFO, "process exited with status: %d", status);
-    } else {
-      status = EXIT_FAILURE;
-      gw_do_log(LOG_WARNING, "unhandled wait4() status");      
+    wpid = wait4(-pid, &wstatus, WNOHANG, &ru);
+    werrno = errno;
+    if (wpid > 0) {
+        if (WIFSIGNALED(wstatus)) {
+            status = EXIT_FAILURE;
+            gw_do_log(LOG_INFO, "proccess killed by signal %d", WTERMSIG(wstatus));
+        } else if (WIFEXITED(wstatus)) {
+            status = WEXITSTATUS(wstatus);
+            gw_do_log(LOG_INFO, "process exited with status: %d", status);
+        } else {
+            status = EXIT_FAILURE;
+            gw_do_log(LOG_WARNING, "unhandled wait4() status");      
+        }
+        final_cpu_time = (double)ru.ru_utime.tv_sec + ((double)ru.ru_utime.tv_usec)/1e+6;
+        gw_report_status(final_cpu_time, frac_done, false);       
+        return true;
+    } else if (wpid < 0) {
+        if (werrno == EINTR)
+            goto retry_wpid;
+        gw_do_log(LOG_WARNING, "wait4() returned with %d", wpid);
     }
-    final_cpu_time = (double)ru.ru_utime.tv_sec + ((double)ru.ru_utime.tv_usec)/1e+6;
-    gw_report_status(final_cpu_time, frac_done, false);       
-    return true;
-  } else if (wpid < 0) {
-    if (werrno == EINTR)
-      goto retry_wpid;
-    gw_do_log(LOG_WARNING, "wait4() returned with %d", wpid);
-  }
-  if (!suspended)
-    wall_cpu_time += POLL_PERIOD;
-  gw_report_status(wall_cpu_time, frac_done, false);       
+    if (!suspended)
+        wall_cpu_time += POLL_PERIOD;
+    gw_report_status(wall_cpu_time, frac_done, false);       
 #endif
-  return false;
+    return false;
 }
 
 
 void TASK::kill() {
 #ifdef _WIN32
-  // should be -1 ?
-  TerminateJobObject(hJobObject, 1);
+    // should be -1 ?
+    TerminateJobObject(hJobObject, 1);
 #else
-  ::killpg(pid, SIGKILL);
+    ::killpg(pid, SIGKILL);
 #endif
 }
 
 
 void TASK::stop() {
 #ifdef _WIN32
-  ::controlProcessesInJob(hJobObject, TRUE);
+    ::controlProcessesInJob(hJobObject, TRUE);
 #else
-  ::killpg(pid, SIGSTOP);
+    ::killpg(pid, SIGSTOP);
 #endif
-  suspended = true;
+    suspended = true;
 }
 
 
 void TASK::resume() {
 #ifdef _WIN32
-  ::controlProcessesInJob(hJobObject, FALSE);
+    ::controlProcessesInJob(hJobObject, FALSE);
 #else
-  ::killpg(pid, SIGCONT);
+    ::killpg(pid, SIGCONT);
 #endif
-  suspended = false;
+    suspended = false;
 }
