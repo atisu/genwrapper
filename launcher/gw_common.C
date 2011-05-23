@@ -144,12 +144,14 @@ void gw_report_status(double cpu_time, double fraction_done, bool final) {
     char msg_buf[MSG_CHANNEL_SIZE];
 
     // do not try to report time when running standalone
-    if (app_client_shm == NULL && cpu_time_warning == 0) {
-        cpu_time_warning = 1;
-        gw_do_log(LOG_WARNING, 
-	              "Cannot report cpu time (%10.4f sec), shared memory is not available "\
-                  "(not repeating this message again)",
-	              cpu_time);
+    if (app_client_shm == NULL) {
+        if (cpu_time_warning == 0) {
+            gw_do_log(LOG_WARNING, 
+	                  "Cannot report cpu time (%10.4f sec), shared memory is not available "\
+                      "(not repeating this message again)",
+	                  cpu_time);
+            cpu_time_warning = 1;
+        }
         return;
     }
     // hack to report cpu time -->
