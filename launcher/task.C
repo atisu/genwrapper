@@ -392,7 +392,8 @@ bool TASK::poll(int& status) {
     unsigned long exit_code;
     JOBOBJECT_BASIC_ACCOUNTING_INFORMATION Rusage;
 
-    addProcessesToJobObject(hJobObject);
+    if (!suspended)
+        addProcessesToJobObject(hJobObject);
     if (GetExitCodeProcess(hProcess, &exit_code)) {
         if (!QueryInformationJobObject(hJobObject, (JOBOBJECTINFOCLASS)1, &Rusage, 
 				                       sizeof(JOBOBJECT_BASIC_ACCOUNTING_INFORMATION), 
