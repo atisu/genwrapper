@@ -136,12 +136,13 @@ Figure \ref{fig:wuscript} shows a simple example for a work unit supplied script
 IN=`boinc resolve_filename in`
 OUT=`boinc resolve_filename out`
 NUM=`cat "${IN}"`
-PERCENT_PER_ITER=$((10000 / NUM))
+PERCENT_PER_ITER=$((10000 / ${NUM}))
+
 for i in `seq ${NUM}`; do
-    PERCENT_COMPLETE=$((PERCENT_INTER * i / 1000))
-    boinc fraction_done_percent ${PERCENT_COMPLETE}
-    echo -e "I am ${PERCENT_COMPLETE}% complete." >> "${OUT}"
-    sleep 1;
+	PERCENT_COMPLETE=$((${PERCENT_PER_ITER} * ${i} / 100))
+	boinc fraction_done_percent ${PERCENT_COMPLETE}
+	echo -e "I am ${PERCENT_COMPLETE}% complete." >> "${OUT}";
+	sleep 1;
 done
 \end{lstlisting}
 \caption{Example work unit supplied script}\label{fig:wuscript}
