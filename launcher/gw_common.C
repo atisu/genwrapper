@@ -66,10 +66,10 @@ void gw_do_vlog(int level, const char *fmt, va_list ap) {
     tm = localtime(&now);
     strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S", tm);
 
-    fprintf(stdout, "%s [%s] ", timebuf, levstr);
-    vfprintf(stdout, fmt, ap);
-    fprintf(stdout, "\n");
-    fflush(stdout);
+    fprintf(stderr, "%s [%s] ", timebuf, levstr);
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    fflush(stderr);
 }
 
 
@@ -122,6 +122,7 @@ void gw_finish(int status, double total_cpu_time) {
     resolved_filename = gw_resolve_filename(DC_LABEL_STDERR);
     gw_copy_file(STDERR_FILE, resolved_filename.c_str());
 #endif // WANT_DCAPI
+	gw_do_log(LOG_INFO, "Exiting...");
     boinc_finish(status);
 }
 

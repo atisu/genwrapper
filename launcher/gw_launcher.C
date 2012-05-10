@@ -145,8 +145,6 @@ int main(int argc, char* argv[]) {
   gw_do_log(LOG_INFO, "BOINC enabled version");
 #endif
 
-  if (argc < 2)
-    gw_do_log(LOG_WARNING, "No workunit script name listed on the command line");
   // Look for & unzip the .zip archive, if any
   std::string filename(basename(argv[0]));
 
@@ -158,7 +156,8 @@ int main(int argc, char* argv[]) {
   filename.append(".zip");
   std::string zip_filename_resolved = gw_resolve_filename(filename.c_str());
   std::string genwrapper_exe_resolved = gw_resolve_filename(GENWRAPPER_EXE);
-  if (!access(zip_filename_resolved.c_str(), R_OK)) {
+
+  if (access(zip_filename_resolved.c_str(), R_OK) != -1) {
     const char *zip_argv[] = {
       "unzip", "-o", "-X", zip_filename_resolved.c_str(), 0
     };
@@ -170,7 +169,8 @@ int main(int argc, char* argv[]) {
       gw_finish(EXIT_FAILURE);
     }
   } else {
-    gw_do_log(LOG_INFO, "Zipfile not found '%s'", zip_filename_resolved.c_str());
+	gw_do_log(LOG_INFO, "Zipfile not found '%s'",
+ 		zip_filename_resolved.c_str());
   }
 
   // Check for the interpreter
@@ -184,22 +184,43 @@ int main(int argc, char* argv[]) {
        gw_finish(EXIT_FAILURE);  
     }     
   }
-  const char *wu_script = argv[1];
-  if (wu_script == NULL) {
-    gw_do_log(LOG_WARNING, "Work unit does not contain work unit script name (should be first command line param), "
-	      "going with default name (%s)", WU_SCRIPT);
-    wu_script = WU_SCRIPT;
-  }
-  if (access(wu_script, R_OK)) {
-    gw_do_log(LOG_ERR, "Script '%s' does not exist", wu_script);
-    gw_finish(EXIT_FAILURE);        
-  }
 
+  std::string wu_script(WU_SCRIPT);
+  FILE *filetest; 
+
+  // test whether default wu_script file esists
+  filetest = fopen(wu_script.c_str(), "r+");
+  if (filetest != NULL) {
+   	  fclose(filetest);
+	  gw_do_log(LOG_INFO, "Found default workunit script file ('%s') in "
+	 	"working directory.", WU_SCRIPT);
+  } else {
+  	gw_do_log(LOG_INFO, "Default workunit script file ('%s') not found. "
+		"Going to test if first command line argument is the workunit script "
+		"(legacy behavior).", WU_SCRIPT);
+	if (argc > 1) {
+    	wu_script = argv[1];
+	  	filetest = fopen(wu_script.c_str(), "r+");	
+	    if (filetest == NULL) {
+	    	gw_do_log(LOG_ERR, "Cannot open workunit script file '%s' (first "
+				"command line argument). No other options left, bailing "
+				"out...");
+      		gw_finish(EXIT_FAILURE);        
+	    } else {
+			fclose(filetest);
+		}
+	} else {
+    	gw_do_log(LOG_ERR, "Cannot find any workunit scripts. No other "
+ 			"options left, bailing out...");
+      	gw_finish(EXIT_FAILURE);        
+	}
+  }
   // create script file which execs profile and the wu supplied (argv[1]) script
   std::ofstream exec_script(EXEC_SCRIPT, std::ios::out);
   exec_script << "set -e\n"
     // profile script is optional
-    << "if [ -r ./" PROFILE_SCRIPT " ]; then . `boinc resolve_filename ./" PROFILE_SCRIPT "`; fi\n"
+    << "if [ -r ./" PROFILE_SCRIPT " ]; then . `boinc resolve_filename ./"
+ 	<< PROFILE_SCRIPT "`; fi\n"
     << ". `boinc resolve_filename ./" << wu_script << "`\n";
   exec_script.close();
   if (exec_script.fail()) {
@@ -211,26 +232,108 @@ int main(int argc, char* argv[]) {
   args.push_back(genwrapper_exe_resolved.c_str());
   args.push_back(string("sh"));
   args.push_back(EXEC_SCRIPT);
-  for (int i = 2; i < argc; i ++)
-    args.push_back(string(argv[i]));
+  if (argc > 1) {
+	  if (strcmp(argv[1], wu_script.c_str())) {
+		args.push_back(string(argv[1]));
+	  } else {
+		gw_do_log(LOG_WARNING, "First command line parameter ('%s') seems like "
+			"a GenWrapper work unit script. I am going to remove it from the "
+			"list of command line parameters. If this is an error and your "
+			"application is missing a parameter, please add the work unit "
+			"script name to the command line as the first parameter.", argv[1]);
+	  }
+  }
+
+  for (int i = 2; i < argc; i ++) {
+	args.push_back(string(argv[i]));
+  }
   if (gw_task.run(args) == ERR_EXEC) {
     gw_do_log(LOG_ERR, "Could not exec %s\n", genwrapper_exe_resolved.c_str());
     gw_finish(EXIT_FAILURE);
   }
   
+  int status;
   while(1) {
-    int status;
     if (gw_task.poll(status)) {
-      if (status) {
-	gw_do_log(LOG_ERR, "'%s' exited with error: %d\n", genwrapper_exe_resolved.c_str(), status);
-        gw_finish(status, gw_task.final_cpu_time);
-      }
       break;
     }
     poll_boinc_messages(gw_task);
     boinc_sleep(POLL_PERIOD);
   }
-  gw_finish(0, gw_task.final_cpu_time);
+
+  if (status) {
+	gw_do_log(LOG_ERR, "'%s' exited with error: %d\n",
+		genwrapper_exe_resolved.c_str(), status);
+  }
+
+  // we are going to have the stderr/ stdout from gitbox and below to different
+  // files (GW_STDERR_FILE and GW_STDOUT_FILE): the gw stdout/stderr overwrote
+  // the previous data from the launcher in win32.
+
+  std::ifstream input_file;
+  std::string line;
+
+  fflush(stderr);
+  input_file.open(GW_STDERR_FILE, std::ios::in | std::ios::binary);
+  if (input_file.is_open()) {
+   	  fprintf(stderr, "\n");
+	  while (input_file.good()) {
+	    getline(input_file, line);
+		fprintf(stderr, " > %s\n", line.c_str());
+	  }
+   	  fprintf(stderr, "\n");
+	  input_file.close();
+  }
+  fflush(stderr);
+
+  fflush(stdout);
+  input_file.open(GW_STDOUT_FILE, std::ios::in | std::ios::binary);
+  if (input_file.is_open()) {
+	  while (input_file.good()) {
+	    getline(input_file, line);
+		fprintf(stdout, "%s\n", line.c_str());
+	  }
+	  input_file.close();
+  }
+  fflush(stdout);
+
+  //
+  // check if stderr.txt and stdout.txt are requested as output files, and copy
+  // the content of the local files (in the slot directory) to the output files 
+  // (in the project directory).
+  std::string file_stderr = gw_resolve_filename(STDERR_FILE);
+  std::string file_stdout = gw_resolve_filename(STDOUT_FILE);
+  int cmpresult = 0;
+  cmpresult = file_stdout.compare(STDOUT_FILE);
+  if (cmpresult != 0) {
+  	gw_do_log(LOG_INFO, "'%s' is requested as output file, copying "
+		"contents of standard output to this file.", STDOUT_FILE);
+	std::ifstream ifs(STDOUT_FILE, std::ios::binary);
+	std::ofstream ofs(file_stdout.c_str(), std::ios::binary);
+	ofs << ifs.rdbuf();
+  } else {
+  	gw_do_log(LOG_INFO, "'%s' is NOT requested as output file.",
+		STDOUT_FILE);
+  	gw_do_log(LOG_DEBUG, "('%s'.compare('%s') == %d)",
+		STDOUT_FILE, file_stdout.c_str(), cmpresult);
+  }
+  cmpresult = file_stderr.compare(STDERR_FILE);
+  if (cmpresult != 0) {
+  	gw_do_log(LOG_INFO, "'%s' is requested as output file, copying "
+		"contents of standard error to this file.", STDERR_FILE);
+	std::ifstream ifs(STDERR_FILE, std::ios::binary);
+	std::ofstream ofs(file_stderr.c_str(), std::ios::binary);
+	ofs << ifs.rdbuf();
+  } else {
+  	gw_do_log(LOG_INFO, "'%s' is NOT requested as output file.",
+		STDERR_FILE);
+  	gw_do_log(LOG_DEBUG, "('%s'.compare('%s') == %d)",
+		STDERR_FILE, file_stderr.c_str(), cmpresult);
+  }
+
+  gw_finish(status, gw_task.final_cpu_time);
+  // we never get here
+  return 0;	
 }
 
 

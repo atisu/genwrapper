@@ -36,6 +36,9 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <syslog.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #endif // _WIN32
 #include <signal.h>
 #include "common.h"
@@ -61,8 +64,8 @@ _NtResumeProcess NtResumeProcess;
 
 // CreateProcess() takes HANDLEs for the stdin/stdout.
 // We need to use CreateFile() to get them.  Ugh.
-HANDLE win_fopen(const char* path, const char* mode) {
-    std::string path_ = gw_resolve_filename(path);
+HANDLE win_fopen(const char* path, const char* mode, bool resolve = TRUE) {
+    std::string path_ = resolve ? gw_resolve_filename(path) : path;
     SECURITY_ATTRIBUTES sa;
     memset(&sa, 0, sizeof(sa));
     sa.nLength = sizeof(sa);
@@ -85,6 +88,15 @@ HANDLE win_fopen(const char* path, const char* mode) {
 		      0, 
 		      0
 		      );
+  } else if (!strcmp(mode, "t")) {
+	        return CreateFile(path_.c_str(),
+	                          GENERIC_WRITE,
+	                          FILE_SHARE_WRITE | FILE_SHARE_READ,
+	                          &sa,
+			      CREATE_ALWAYS,
+			      0, 
+			      0
+			      );
   } else if (!strcmp(mode, "a")) {
     HANDLE hAppend = CreateFile(
 				path_.c_str(),
@@ -324,19 +336,21 @@ int TASK::run(vector<string> &args) {
     // we need to redirect stdout/ stderr to somewhere or they'll
     // get lost. we redirect them to the standard boinc stdout/ stderr,
     // and dc-api will copy them to its stderr/stdout files before exit.
-    startup_info.hStdError = win_fopen(STDERR_FILE, "w");
-    startup_info.hStdOutput = win_fopen(STDOUT_FILE, "w");
+    startup_info.hStdError = win_fopen(GW_STDERR_FILE, "t", FALSE);
+    startup_info.hStdOutput = win_fopen(GW_STDOUT_FILE, "t", FALSE);
     startup_info.hStdInput = NULL;
 
-    for (vector<string>::const_iterator it = args.begin(); it != args.end(); it++)
-        command += (*it) + " ";
+    for (vector<string>::const_iterator it = args.begin(); it != args.end();
+ 		it++)
+        	command += (*it) + " ";
 
     if (!CreateProcess(NULL, 
 		               (LPSTR)command.c_str(),
 		               NULL,
 		               NULL,
 		               true,		// bInheritHandles
-		               CREATE_NO_WINDOW | IDLE_PRIORITY_CLASS | CREATE_NEW_PROCESS_GROUP,
+		               CREATE_NO_WINDOW | IDLE_PRIORITY_CLASS |
+		 				CREATE_NEW_PROCESS_GROUP,
 		               NULL,
 		               NULL,
 		               &startup_info,
@@ -360,23 +374,57 @@ int TASK::run(vector<string> &args) {
     if (pid == 0) {
         // we're the child process
         //
-        // create a new process group with the id of the child process, so we can control all
-        // (future) child processes from the parent.
-        // NOTE: when job control is enabled in gitbox, it will create new process groups for its subshells ;(
+        // create a new process group with the id of the child process, so we
+ 		// can control all (future) child processes from the parent.
+        // NOTE: when job control is enabled in gitbox, it will create new
+ 		//       process groups for its subshells ;(
         if (setpgid(getpid(), getpid()) == -1) {
-            gw_do_log(LOG_ERR, "process id and the new process group id does not match !! (%d/%d)", 
-		              getpgid(0), getpid());
+            gw_do_log(LOG_ERR, "process id and the new process group id does "
+ 				"not match !! (%d/%d)", getpgid(0), getpid());
             exit(ERR_EXEC);
         }
-        gw_do_log(LOG_INFO, "i am the first child and my process group is %d", getpgid(getpid()));
-        const char **argv = (const char **)malloc(sizeof(*argv) * (args.size() + 1));
+        gw_do_log(LOG_INFO, "I am the first child and my process group is %d",
+ 			getpgid(getpid()));
+		//
+		// redirect stdout and stderr of the task to boinc_resolve(STDERR_FILE) 
+		// and boinc_resolve(STDOUT_FILE)
+		std::string file_stderr = gw_resolve_filename(GW_STDERR_FILE);
+		std::string file_stdout = gw_resolve_filename(GW_STDOUT_FILE);
+		int fd_stdout = open(file_stdout.c_str(), O_RDWR | O_CREAT | O_TRUNC, 
+			S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+		if (fd_stdout == -1) {
+			gw_do_log(LOG_WARNING, "Cannot open file '%s' for redirecting "
+				"the standard output (stdout) of the task. Stdout will "
+				"not be available.", file_stdout.c_str());			
+		} else {
+			gw_do_log(LOG_DEBUG, "Redirected standard output (stdout) "
+				"of task to '%s'", file_stdout.c_str());
+			fflush(stdout);
+			dup2(fd_stdout, STDOUT_FILENO);
+			close(fd_stdout);
+		}
+		int fd_stderr = open(file_stderr.c_str(), O_RDWR | O_CREAT | O_TRUNC, 
+			S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+		if (fd_stderr == -1) {
+			gw_do_log(LOG_WARNING, "Cannot open file '%s' for redirecting "
+				"the standard error (stderr) of the task. Stderr will "
+				"not be available.", file_stderr.c_str());			
+		} else {
+			gw_do_log(LOG_DEBUG, "Redirected standard error (stderr) "
+				"of task to '%s'", file_stderr.c_str());
+			fflush(stderr);
+			dup2(fd_stderr, STDERR_FILENO);
+			close(fd_stderr);
+		}
+        const char **argv = (const char **)malloc(sizeof(*argv) * (args.size() 
+			+ 1));
         size_t i;
         for (i = 0; i < args.size(); i++)
             argv[i] = args.at(i).c_str();
         argv[i] = NULL;
-
         execv(argv[0], (char *const *)argv);
-        gw_do_log(LOG_ERR, "Could not execute '%s': %s", argv[0], strerror(errno));
+        gw_do_log(LOG_ERR, "Could not execute '%s': %s", argv[0],
+ 			strerror(errno));
         exit(ERR_EXEC);
     }
 #endif
@@ -395,11 +443,11 @@ bool TASK::poll(int& status) {
     if (!suspended)
         addProcessesToJobObject(hJobObject);
     if (GetExitCodeProcess(hProcess, &exit_code)) {
-        if (!QueryInformationJobObject(hJobObject, (JOBOBJECTINFOCLASS)1, &Rusage, 
-				                       sizeof(JOBOBJECT_BASIC_ACCOUNTING_INFORMATION), 
-				                       NULL)) {
-            gw_do_log(LOG_ERR, "failed to query information on JobObject (%ld)", 
-		    (long)GetLastError());
+        if (!QueryInformationJobObject(hJobObject, (JOBOBJECTINFOCLASS)1,
+ 			&Rusage, 
+            sizeof(JOBOBJECT_BASIC_ACCOUNTING_INFORMATION), NULL)) {
+            	gw_do_log(LOG_ERR, "failed to query information on JobObject "
+ 					"(%ld)", (long)GetLastError());
         } else {
             final_cpu_time = Rusage.TotalUserTime.QuadPart / 10000000.0;
         }
@@ -420,7 +468,8 @@ bool TASK::poll(int& status) {
     if (wpid > 0) {
         if (WIFSIGNALED(wstatus)) {
             status = EXIT_FAILURE;
-            gw_do_log(LOG_INFO, "proccess killed by signal %d", WTERMSIG(wstatus));
+            gw_do_log(LOG_INFO, "proccess killed by signal %d",
+ 				WTERMSIG(wstatus));
         } else if (WIFEXITED(wstatus)) {
             status = WEXITSTATUS(wstatus);
             gw_do_log(LOG_INFO, "process exited with status: %d", status);
@@ -428,7 +477,8 @@ bool TASK::poll(int& status) {
             status = EXIT_FAILURE;
             gw_do_log(LOG_WARNING, "unhandled wait4() status");      
         }
-        final_cpu_time = (double)ru.ru_utime.tv_sec + ((double)ru.ru_utime.tv_usec)/1e+6;
+        final_cpu_time = (double)ru.ru_utime.tv_sec +
+ 			((double)ru.ru_utime.tv_usec)/1e+6;
         gw_report_status(final_cpu_time, frac_done, false);       
         return true;
     } else if (wpid < 0) {

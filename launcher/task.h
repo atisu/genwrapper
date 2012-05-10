@@ -27,6 +27,10 @@
 using std::vector;
 using std::string;
 
+// stderr/stdout redirection of gw will go to separate files
+#define GW_STDERR_FILE "gw_stderr.txt"
+#define GW_STDOUT_FILE "gw_stdout.txt"
+
 struct TASK {
   double final_cpu_time;
   double wall_cpu_time;
